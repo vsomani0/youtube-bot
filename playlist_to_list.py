@@ -10,13 +10,14 @@ def get_playlist(playlist: Playlist) -> list:
         try:
             curr_vid = YouTube(video)
         except pytube.exceptions.VideoUnavailable:
+    # Exception doesn't work, pytube library appears faulty
             print("Skipping video, because it is unaivalable.")
         else:
-            all_vids.append(get_video_details(curr_vid))
+            all_vids.append(add_video_details(curr_vid))
     print(f"Playlist \"{playlist.title}\" Stored Successfully!")
     return all_vids
 
-def get_video_details(curr_vid: YouTube) -> list:
+def add_video_details(curr_vid: YouTube) -> list:
     '''Returns a list containing all details from a video object.'''
     curr_vid_details = []
     curr_vid_details.append(curr_vid.watch_url)
@@ -64,15 +65,35 @@ def rand_vid_category(all_vids, min_length = -1, max_length = -1, min_views = -1
         return []
     return(rand_vid(temp_list))
 
+def get_video_details(vid_details: list) -> str:
+    stringVal = f"{vid_details[0]}, {vid_details[1]}, {vid_details[2]}, {vid_details[3]}, {vid_details[4]}, {vid_details[5]}"
+    return stringVal
+
+def write_playlist_data(all_vids: list, playlistTitle: str) -> None:
+    print(playlistTitle)
+    # Allows for specific user-inputted title or the default title
+    with open("user_data.txt", "w", encoding = "utf-8") as f:
+        for vid_details in all_vids:
+            f.write(get_video_details(vid_details))
+        print()
+        # Leaves a new line where the next playlist starts
+
 all_playlists = []
 pl_link = "https://www.youtube.com/playlist?list=PLEhSYc84M4xCljuyXNxEgVHLgdCzAm0vu"
+# Playlist given purely to test
+
 playlist_one = Playlist(pl_link)
 playlist_reference = {}
-playlist_reference[playlist_one.title] = len(all_playlists)
-# Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
 all_playlists.append(get_playlist(playlist_one))
+write_playlist_data(all_playlists, playlist_one.title)
+playlist_reference[playlist_one.title] = len(all_playlists) - 1
+# Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
+# Playlist stored in list, dictionary, and file, where it can be re-extracted
+
+
 for x in range(10):
     print(rand_vid_category(all_playlists[playlist_reference["Favorite Videos"]], min_length = 30, max_length = 500, min_views = 20))
+# Testing the playlist
 
 
 
