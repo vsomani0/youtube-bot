@@ -76,7 +76,7 @@ def get_video_details(vid_details: list) -> str:
     # CSV interrupted if a YouTube author had a comma in their username, but this is extremely uncommon.
     return (stringVal)
 
-def write_playlist_data(all_vids: list, playlistTitle: str) -> None:
+def write_playlist_data(all_vids, playlistTitle) -> None:
     # Allows for specific user-inputted title or the default title
     with open("user_data.txt", "a", encoding = "utf-8") as f:
         f.write(playlistTitle + "\n")
@@ -85,15 +85,49 @@ def write_playlist_data(all_vids: list, playlistTitle: str) -> None:
         f.write("\n")
     print("Playlist Data Stored!")
 
+def read_all_playlist_data(all_playlists, playlist_reference):
+    with open("user_data.txt", "r", encoding = "utf-8") as f:
+        while True:
+            curr_line = f.readline()
+            if curr_line == (''):
+                return
+            playlist_reference[curr_line] = len(all_playlists)
+            # currLine stores the title first if the file doesn't immediately end. Adds title to dictionary at right index.
+            curr_playlist = []
+            all_playlists.append(curr_playlist)
+            for curr_line in f.readline():
+                if curr_line == '\n':
+                    break
+                    # Goes back to while loop to add a new playlist after a newline
+                if curr_line == '':
+                    return
+                    # If file ends, return. If there's an extra newline, it will get caught later.
+                read_file_line(curr_playlist, curr_line)
+                # Gives the current 
+                
+def read_file_line(all_vids, line_to_read):
+    split_line = line_to_read.split(', ')
+    part_five = split_line - split_line[0] - split_line[1] - split_line[2] - split_line[3]
+    # Split_line[4], but works with comma in title
+    all_vids.append(split_line[0])
+    if split_line[1] == 'True': 
+        all_vids.append(True)
+    else:
+        all_vids.append(False)
+    all_vids.append(int(split_line[2]))
+    all_vids.append(int(split_line(3)))
+    all_vids.append(part_five)
+
 all_playlists = []
 pl_link = "https://www.youtube.com/playlist?list=PLEhSYc84M4xCljuyXNxEgVHLgdCzAm0vu"
 # Playlist given purely to test
 
 playlist_one = Playlist(pl_link)
 playlist_reference = {}
+playlist_reference[playlist_one.title] = len(all_playlists)
 all_playlists.append(get_playlist(playlist_one))
 write_playlist_data(all_playlists[0], playlist_one.title)
-playlist_reference[playlist_one.title] = len(all_playlists) - 1
+
 # Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
 # Playlist stored in list, dictionary, and file, where it can be re-extracted
 
