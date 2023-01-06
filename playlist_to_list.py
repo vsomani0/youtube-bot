@@ -13,11 +13,11 @@ def get_playlist(playlist: Playlist) -> list:
     # Exception doesn't work, pytube library appears faulty
             print("Skipping video, because it is unaivalable.")
         else:
-            all_vids.append(add_video_details(curr_vid))
+            all_vids.append(add_video_details_from_playlist(curr_vid))
     print(f"Playlist \"{playlist.title}\" Stored Successfully!")
     return all_vids
 
-def add_video_details(curr_vid: YouTube) -> list:
+def add_video_details_from_playlist(curr_vid: YouTube) -> list:
     '''Returns a list containing all details from a video object.'''
     curr_vid_details = []
     curr_vid_details.append(curr_vid.watch_url)
@@ -76,64 +76,77 @@ def get_video_details(vid_details: list) -> str:
     # CSV interrupted if a YouTube author had a comma in their username, but this is extremely uncommon.
     return (stringVal)
 
-def write_playlist_data(all_vids, playlistTitle) -> None:
+def write_playlist_data(all_vids: list, playlistTitle: str) -> None:
     # Allows for specific user-inputted title or the default title
     with open("user_data.txt", "a", encoding = "utf-8") as f:
         f.write(playlistTitle + "\n")
         for vid_details in all_vids:
             f.write(get_video_details(vid_details))
         f.write("\n")
-    print("Playlist Data Stored!")
+    print("Playlist Data stored to file!")
 
-def read_all_playlist_data(all_playlists, playlist_reference):
+def read_all_playlist_data(all_playlists: list, playlist_reference: dict):
     with open("user_data.txt", "r", encoding = "utf-8") as f:
         while True:
-            curr_line = f.readline()
+            curr_line = f.readline().strip()
+            print(f"Extracting details of playlist titled: {curr_line}")
             if curr_line == (''):
                 return
             playlist_reference[curr_line] = len(all_playlists)
             # currLine stores the title first if the file doesn't immediately end. Adds title to dictionary at right index.
             curr_playlist = []
             all_playlists.append(curr_playlist)
-            for curr_line in f.readline():
+            for curr_line in f:
                 if curr_line == '\n':
                     break
                     # Goes back to while loop to add a new playlist after a newline
                 if curr_line == '':
                     return
-                    # If file ends, return. If there's an extra newline, it will get caught later.
-                read_file_line(curr_playlist, curr_line)
-                # Gives the current 
+                    # If there's an extra newline, file end will get caught in other loop
+                add_video_details_from_file(curr_playlist, curr_line)
+                # Reads current line as a CSV, appending it to playlist
                 
-def read_file_line(all_vids, line_to_read):
+def add_video_details_from_file(all_vids, line_to_read):
+    '''Reads current line as a CSV, and appends it's video details to playlist'''
+    curr_vid = []
     split_line = line_to_read.split(', ')
-    part_five = split_line - split_line[0] - split_line[1] - split_line[2] - split_line[3]
-    # Split_line[4], but works with comma in title
-    all_vids.append(split_line[0])
+    part_six = split_line[5]
+    for i in range(6, len(split_line)):
+        part_six += ", " + split_line[i]
+        # Doesn't stop if title has a comma in it
+    part_six = part_six.strip()
+    curr_vid.append(split_line[0])
     if split_line[1] == 'True': 
-        all_vids.append(True)
+        curr_vid.append(True)
     else:
-        all_vids.append(False)
-    all_vids.append(int(split_line[2]))
-    all_vids.append(int(split_line(3)))
-    all_vids.append(part_five)
+        curr_vid.append(False)
+    curr_vid.append(float(split_line[2]))
+    curr_vid.append(float(split_line[3]))
+    curr_vid.append(split_line[4])
+    curr_vid.append(part_six)
+    print (*curr_vid)
+    all_vids.append(curr_vid)
+
+def store_playlist(all_playlists, playlist_reference, playlist_link) -> None:
+    '''Stores playlist in list, dictionary, and file, where it can be re-extracted'''
+    curr_playlist = Playlist(playlist_link)
+    playlist_reference[curr_playlist.title] = len(all_playlists)
+    # Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
+    all_playlists.append(get_playlist(curr_playlist))
+    # Gets all playlist data and appends it
+    write_playlist_data(all_playlists[playlist_reference[curr_playlist.title]], curr_playlist.title)
 
 all_playlists = []
-pl_link = "https://www.youtube.com/playlist?list=PLEhSYc84M4xCljuyXNxEgVHLgdCzAm0vu"
-# Playlist given purely to test
-
-playlist_one = Playlist(pl_link)
 playlist_reference = {}
-playlist_reference[playlist_one.title] = len(all_playlists)
-all_playlists.append(get_playlist(playlist_one))
-write_playlist_data(all_playlists[0], playlist_one.title)
+pl_link = "https://www.youtube.com/playlist?list=PLEhSYc84M4xCljuyXNxEgVHLgdCzAm0vu"
+pl_link2 = "https://www.youtube.com/playlist?list=PLUXSZMIiUfFS6azeerXYR4gQExSwPCx-s"
+# Playlists given purely to test
+# store_playlist(all_playlists, playlist_reference, pl_link)
+# store_playlist(all_playlists, playlist_reference, pl_link2)
+read_all_playlist_data(all_playlists, playlist_reference)
 
-# Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
-# Playlist stored in list, dictionary, and file, where it can be re-extracted
-
-
-for x in range(0):
-    print(rand_vid_category(all_playlists[playlist_reference["Favorite Videos"]], min_length = 30, max_length = 500, min_views = 20))
+for x in range(10):
+   print(rand_vid_category(all_playlists[playlist_reference["Untitled"]], min_length = 10, max_length = 20, min_views = 20))
 # Testing the playlist
 
 
