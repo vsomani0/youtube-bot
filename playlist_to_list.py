@@ -1,6 +1,7 @@
 from pytube import YouTube, Playlist
 import pytube.exceptions
 import random
+from requests.structures import CaseInsensitiveDict
 
 def get_playlist(playlist: Playlist) -> list:
     '''Stores all chosen video data from a playlist into a list.'''
@@ -40,7 +41,7 @@ def rand_vid(all_vids) -> list:
     random_video_index = random.randint(0, len(all_vids)-1)
     return all_vids[random_video_index]
 
-def rand_vid_category(all_vids, min_length = -1, max_length = -1, min_views = -1, max_views = -1, author = ""):
+def rand_vid_category(all_vids, min_length = -1, max_length = -1, min_views = -1, max_views = -1, author = "", title_contains = "", is_favorite = False):
     '''Takes a playlist and some chosen categories, and gives a video from that category. Deletes all videos from
     different categories in a temporary list, and then takes a random video out of the temporary list.'''
     temp_list = []
@@ -48,6 +49,7 @@ def rand_vid_category(all_vids, min_length = -1, max_length = -1, min_views = -1
         if (min_length != -1):
             if (vid_details[2] < min_length):
                 continue
+                # Skips current video if it doesn't meet criteria
         if (max_length != -1):
             if (vid_details[2] > max_length):
                 continue
@@ -60,11 +62,27 @@ def rand_vid_category(all_vids, min_length = -1, max_length = -1, min_views = -1
         if (author != ""):
             if (vid_details[4].casefold() != author.casefold()):
                 continue
+        if (title_contains != ""):
+            if (title_contains.casefold() not in vid_details[5].casefold()):
+                continue
+        if (is_favorite == True):
+            if (vid_details[1] != True):
+                continue
         temp_list.append(vid_details)
+        # If video meets all criteria, it's added to the appropriate list
     if (len(temp_list) <= 0):
         print("No video found with the search criteria!")
         return []
     return(rand_vid(temp_list))
+
+def make_video_favorite(all_vids: list, vid_title: str) -> None:
+    compare_string = vid_title.casefold()
+    # Makes the comparison string casefold once rather than in each for-loop iteration
+    for vid_details in all_vids:
+        if (vid_details[5].casefold() == compare_string):
+            vid_details[1] = True
+            return
+    print(f"{vid_title} not found in the playlist. Did you spell it correctly?")
 
 def get_video_details(vid_details: list) -> str:
     '''Stores all details from a video into comma-separated format'''
@@ -73,7 +91,7 @@ def get_video_details(vid_details: list) -> str:
         stringVal += f"{vid_details[i]}, "
     stringVal += f"{vid_details[i+1]}\n"
     # Stores video details. Stores title of video last so video title doesn't interrupt CSV
-    # CSV interrupted if a YouTube author had a comma in their username, but this is extremely uncommon.
+    # CSV still interrupted if a YouTube author has a comma in their username, but extremely uncommon.
     return (stringVal)
 
 def write_playlist_data(all_vids: list, playlistTitle: str) -> None:
@@ -89,9 +107,9 @@ def read_all_playlist_data(all_playlists: list, playlist_reference: dict):
     with open("user_data.txt", "r", encoding = "utf-8") as f:
         while True:
             curr_line = f.readline().strip()
-            print(f"Extracting details of playlist titled: {curr_line}")
             if curr_line == (''):
                 return
+            print(f"Extracting details of playlist titled: {curr_line}")
             playlist_reference[curr_line] = len(all_playlists)
             # currLine stores the title first if the file doesn't immediately end. Adds title to dictionary at right index.
             curr_playlist = []
@@ -124,7 +142,6 @@ def add_video_details_from_file(all_vids, line_to_read):
     curr_vid.append(float(split_line[3]))
     curr_vid.append(split_line[4])
     curr_vid.append(part_six)
-    print (*curr_vid)
     all_vids.append(curr_vid)
 
 def store_playlist(all_playlists, playlist_reference, playlist_link) -> None:
@@ -137,7 +154,8 @@ def store_playlist(all_playlists, playlist_reference, playlist_link) -> None:
     write_playlist_data(all_playlists[playlist_reference[curr_playlist.title]], curr_playlist.title)
 
 all_playlists = []
-playlist_reference = {}
+playlist_reference = CaseInsensitiveDict()
+# Creates a dictionary to store all the video titles by their index. Case-insensitive gives user more potential keys.
 pl_link = "https://www.youtube.com/playlist?list=PLEhSYc84M4xCljuyXNxEgVHLgdCzAm0vu"
 pl_link2 = "https://www.youtube.com/playlist?list=PLUXSZMIiUfFS6azeerXYR4gQExSwPCx-s"
 # Playlists given purely to test
@@ -145,8 +163,8 @@ pl_link2 = "https://www.youtube.com/playlist?list=PLUXSZMIiUfFS6azeerXYR4gQExSwP
 # store_playlist(all_playlists, playlist_reference, pl_link2)
 read_all_playlist_data(all_playlists, playlist_reference)
 
-for x in range(10):
-   print(rand_vid_category(all_playlists[playlist_reference["Untitled"]], min_length = 10, max_length = 20, min_views = 20))
+for x in range(5):
+   print(rand_vid_category(all_playlists[playlist_reference["favorite videos"]], title_contains = "angry"))
 # Testing the playlist
 
 
