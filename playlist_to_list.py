@@ -1,9 +1,15 @@
+import discord
+import playlist_to_list
+from discord.ext import commands
 from pytube import YouTube, Playlist
 import pytube.exceptions
 import random
 from requests.structures import CaseInsensitiveDict
 
-def get_playlist(playlist: Playlist) -> list:
+intents = discord.Intents.default()
+intents.message_content = True
+
+async def get_playlist_helper(playlist: Playlist, ctx) -> list:
     '''Stores all chosen video data from a playlist into a list.'''
     all_vids = []
     print(f'Downloading all video data from playlist \"{playlist.title}\". Please wait a few moments.')
@@ -12,13 +18,13 @@ def get_playlist(playlist: Playlist) -> list:
             curr_vid = YouTube(video)
         except pytube.exceptions.VideoUnavailable:
     # Exception doesn't work, pytube library appears faulty
-            print("Skipping video, because it is unaivalable.")
+            ctx.send("Skipping video, because it is unaivalable.")
         else:
             all_vids.append(add_video_details_from_playlist(curr_vid))
-    print(f"Playlist \"{playlist.title}\" Stored Successfully!")
+    ctx.send(f"Playlist \"{playlist.title}\" Stored Successfully!")
     return all_vids
 
-def add_video_details_from_playlist(curr_vid: YouTube) -> list:
+async def add_video_details_from_playlist(curr_vid: YouTube) -> list:
     '''Returns a list containing all details from a video object.'''
     curr_vid_details = []
     curr_vid_details.append(curr_vid.watch_url)
@@ -30,18 +36,9 @@ def add_video_details_from_playlist(curr_vid: YouTube) -> list:
     curr_vid_details.append(curr_vid.views)
     curr_vid_details.append(curr_vid.author)
     curr_vid_details.append(curr_vid.title)
-    
     return curr_vid_details
 
-def rand_vid(all_vids) -> list:
-    '''Returns a random video's settings from a playlist'''
-    if (len(all_vids) <= 0):
-        print("No video found!")
-        return []
-    random_video_index = random.randint(0, len(all_vids)-1)
-    return all_vids[random_video_index]
-
-def rand_vid_category(all_vids, min_length = -1, max_length = -1, min_views = -1, max_views = -1, author = "", title_contains = "", is_favorite = False):
+async def rand_vid_category_helper(all_vids, ctx, min_length = -1, max_length = -1, min_views = -1, max_views = -1, author = "", title_contains = "", is_favorite = False):
     '''Takes a playlist and some chosen categories, and gives a video from that category. Deletes all videos from
     different categories in a temporary list, and then takes a random video out of the temporary list.'''
     temp_list = []
@@ -71,20 +68,21 @@ def rand_vid_category(all_vids, min_length = -1, max_length = -1, min_views = -1
         temp_list.append(vid_details)
         # If video meets all criteria, it's added to the appropriate list
     if (len(temp_list) <= 0):
-        print("No video found with the search criteria!")
+        ctx.send("No video found with the search criteria!")
         return []
-    return(rand_vid(temp_list))
+    return(rand_vid_helper(temp_list))
 
-def make_video_favorite(all_vids: list, vid_title: str) -> None:
+async def make_video_favorite(all_vids: list, vid_title: str, ctx) -> None:
+    '''Makes a video favorite given the video title and the list'''
     compare_string = vid_title.casefold()
     # Makes the comparison string casefold once rather than in each for-loop iteration
     for vid_details in all_vids:
         if (vid_details[5].casefold() == compare_string):
             vid_details[1] = True
             return
-    print(f"{vid_title} not found in the playlist. Did you spell it correctly?")
+    ctx.send(f"{vid_title} not found in the playlist. Are you sure you spelled it correctly?")
 
-def get_video_details(vid_details: list) -> str:
+async def get_video_details(vid_details: list) -> str:
     '''Stores all details from a video into comma-separated format'''
     stringVal = ""
     for i in range(len(vid_details)-1):
@@ -94,16 +92,17 @@ def get_video_details(vid_details: list) -> str:
     # CSV still interrupted if a YouTube author has a comma in their username, but extremely uncommon.
     return (stringVal)
 
-def write_playlist_data(all_vids: list, playlistTitle: str) -> None:
+async def write_playlist_data(all_vids: list, playlistTitle: str, ctx) -> None:
+    '''Write data specifically for a playlist to a file'''
     # Allows for specific user-inputted title or the default title
     with open("user_data.txt", "a", encoding = "utf-8") as f:
         f.write(playlistTitle + "\n")
         for vid_details in all_vids:
             f.write(get_video_details(vid_details))
         f.write("\n")
-    print("Playlist Data stored to file!")
+    ctx.send("Playlist Data stored to file!")
 
-def read_all_playlist_data(all_playlists: list, playlist_reference: dict):
+def read_all_playlist_data_helper(all_playlists: list, playlist_reference: dict):
     with open("user_data.txt", "r", encoding = "utf-8") as f:
         while True:
             curr_line = f.readline().strip()
@@ -124,14 +123,14 @@ def read_all_playlist_data(all_playlists: list, playlist_reference: dict):
                 add_video_details_from_file(curr_playlist, curr_line)
                 # Reads current line as a CSV, appending it to playlist
                 
-def add_video_details_from_file(all_vids, line_to_read):
+async def add_video_details_from_file(all_vids, line_to_read):
     '''Reads current line as a CSV, and appends it's video details to playlist'''
     curr_vid = []
     split_line = line_to_read.split(', ')
     part_six = split_line[5]
     for i in range(6, len(split_line)):
         part_six += ", " + split_line[i]
-        # Doesn't stop if title has a comma in it
+        # Doesn't stop midway through title if title has a comma in it
     part_six = part_six.strip()
     curr_vid.append(split_line[0])
     if split_line[1] == 'True': 
@@ -144,29 +143,78 @@ def add_video_details_from_file(all_vids, line_to_read):
     curr_vid.append(part_six)
     all_vids.append(curr_vid)
 
-def store_playlist(all_playlists, playlist_reference, playlist_link) -> None:
+async def store_playlist_helper(all_playlists, playlist_reference, playlist_link, ctx, title = None) -> None:
     '''Stores playlist in list, dictionary, and file, where it can be re-extracted'''
     curr_playlist = Playlist(playlist_link)
-    playlist_reference[curr_playlist.title] = len(all_playlists)
+    # If no extra title is given, title automatically takes the title of the playlist
+    if (title == None):
+        title = curr_playlist.title
     # Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
-    all_playlists.append(get_playlist(curr_playlist))
-    # Gets all playlist data and appends it
-    write_playlist_data(all_playlists[playlist_reference[curr_playlist.title]], curr_playlist.title)
+    playlist_reference[title] = len(all_playlists)
+    # Get all playlist data and append it to the list
+    all_playlists.append(get_playlist_helper(curr_playlist))
+    write_playlist_data(all_playlists[playlist_reference[title]], title, ctx = ctx)
 
-all_playlists = []
+
+# Create a dictionary to store all the video titles by their index. Case-insensitive gives user more potential keys.
 playlist_reference = CaseInsensitiveDict()
-# Creates a dictionary to store all the video titles by their index. Case-insensitive gives user more potential keys.
+# Give playlists purely to test
 pl_link = "https://www.youtube.com/playlist?list=PLEhSYc84M4xCljuyXNxEgVHLgdCzAm0vu"
 pl_link2 = "https://www.youtube.com/playlist?list=PLUXSZMIiUfFS6azeerXYR4gQExSwPCx-s"
-# Playlists given purely to test
 # store_playlist(all_playlists, playlist_reference, pl_link)
 # store_playlist(all_playlists, playlist_reference, pl_link2)
-read_all_playlist_data(all_playlists, playlist_reference)
+# read_all_playlist_data(all_playlists, playlist_reference)
 
-for x in range(5):
-   print(rand_vid_category(all_playlists[playlist_reference["favorite videos"]], title_contains = "angry"))
 # Testing the playlist
+# for x in range(5):
+#    print(rand_vid_category(all_playlists[playlist_reference["favorite videos"]], title_contains = "angry"))
 
+async def rand_vid_helper(all_vids, ctx) -> list:
+    '''Returns a random video's settings from a playlist'''
+    if (len(all_vids) <= 0):
+        return None
+    random_video_index = random.randint(0, len(all_vids)-1)
+    return all_vids[random_video_index]
 
+bot = commands.Bot(command_prefix = '$', intents = intents)
 
+testingEmpty = []
+all_playlists = []
 
+@bot.command()
+async def random_video(ctx, args):
+    await rand_vid_helper(all_playlists, ctx = ctx)
+
+@bot.command()
+async def save_playlist(ctx, *args):
+    if (len(args) == 0):
+        await ctx.send("Please provide the playlist URL")
+    if (len(args) == 1):
+        await store_playlist_helper(all_playlists, playlist_reference, args[0], ctx = ctx)
+    else:
+        await store_playlist_helper(all_playlists, playlist_reference, args[0], title = args[1])
+
+@bot.command()
+async def help(ctx):
+    await ctx.send("FIXME!")
+
+@bot.command()
+async def list(ctx):
+    await ctx.send("FIXME!")
+
+@bot.command()
+async def random_video_with_category(ctx, *args):
+    video_chosen = []
+    if (len(args) == 0):
+        video_chosen = await rand_vid_helper() 
+        if video_chosen is None:
+            await ctx.send("No video found!")
+        else:
+            await ctx.send(f"{video_chosen[0]} -- {video_chosen[5]} by {video_chosen[4]}")
+    else:
+        await ctx.send("FIXME!")
+
+with open ("key.txt", "r", encoding= "utf-8") as f:
+    # Makes key hidden
+    key = f.readline()
+bot.run(key)
