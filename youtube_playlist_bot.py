@@ -8,6 +8,23 @@ from requests.structures import CaseInsensitiveDict
 intents = discord.Intents.default()
 intents.message_content = True
 
+class Video_Data:
+    def __init__(self, url, isFavorite, lengthMinutes, views, author, title):
+        self.url = url
+        self.isFavorite = isFavorite
+        self.length = lengthMinutes
+        self.views = views
+        self.author = author
+        self.title = title
+
+class Playlist_Data:
+    def __init__(self, title):
+        self.title = title
+        self.videos = []
+
+    def add_video(self, video: Video_Data):
+        self.videos.append(video)
+
 def get_playlist_helper(playlist: Playlist) -> list:
     '''Stores all chosen video data from a playlist into a list.'''
     all_vids = []
