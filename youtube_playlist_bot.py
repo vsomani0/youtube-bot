@@ -17,6 +17,17 @@ class Video_Data:
         self.author = author
         self.title = title
 
+    def __init__(self, curr_vid: YouTube):
+        self.url = curr_vid.watch_url
+        # Adds video URL to list
+        self.isFavorite = False
+        # By default, all videos are false, to indicate they are not a favorite
+        self.length = curr_vid.length/60
+        # Add time of video in minutes to list
+        self.views = curr_vid.views
+        self.author = curr_vid.author
+        self.title = curr_vid.title
+    
 class Playlist_Data:
     def __init__(self, title):
         self.title = title
@@ -25,80 +36,114 @@ class Playlist_Data:
     def add_video(self, video: Video_Data):
         self.videos.append(video)
 
-def get_playlist_helper(playlist: Playlist) -> list:
-    '''Stores all chosen video data from a playlist into a list.'''
-    all_vids = []
-    print(f'Downloading all video data from playlist \"{playlist.title}\". Please wait a few moments.')
-    for video in playlist:
-        try:
-            curr_vid = YouTube(video)
-        except pytube.exceptions.VideoUnavailable:
-    # Exception doesn't work, pytube library appears faulty
-            print("Skipping video, because it is unaivalable.")
-        else:
-            all_vids.append(add_video_details_from_playlist(curr_vid))
-    return all_vids
+    def add_details_from_playlist(self, playlist: Playlist):
+        '''Extracts all videos from each video in playlist, and adds into videos list .'''
+        print(f'Downloading all video data from playlist \"{playlist.title}\". Please wait a few moments.')
+        for video in playlist:
+            try:
+                # Get the video details from its link using the Pytube library
+                curr_vid = YouTube(video)
+            except pytube.exceptions.VideoUnavailable:
+            # Exception doesn't work, pytube library appears faulty
+                print("Skipping video, because it is unaivalable.")
+            else:
+                # Adds the video itself to the playlist
+                self.videos.append(Video_Data(curr_vid))
 
-def add_video_details_from_playlist(curr_vid: YouTube) -> list:
-    '''Returns a list containing all details from a video object.'''
-    curr_vid_details = []
-    curr_vid_details.append(curr_vid.watch_url)
-    # Adds video URL to list
-    curr_vid_details.append(False)
-    # By default, all videos are false, to indicate they are not a favorite
-    curr_vid_details.append(curr_vid.length/60)
-    # Add time of video in minutes to list
-    curr_vid_details.append(curr_vid.views)
-    curr_vid_details.append(curr_vid.author)
-    curr_vid_details.append(curr_vid.title)
-    return curr_vid_details
+    def rand_vid(self) -> Video_Data:
+        '''Returns a random video's settings from a playlist'''
+        if (len(self.videos) == 0):
+            return None
+        # Consider making this random.randomchoice after fixing other issues.
+        random_video_index = random.randint(0, len(self.videos)-1)
+        return self.videos[random_video_index]
 
-def rand_vid_category_helper(all_vids, min_length = -1, max_length = -1, min_views = -1, max_views = -1, author = "", title_contains = "", is_favorite = False):
-    '''Takes a playlist and some chosen categories, and gives a video from that category. Deletes all videos from
-    different categories in a temporary list, and then takes a random video out of the temporary list.'''
-    temp_list = []
-    for vid_details in all_vids:
-        if (min_length != -1):
-            if (vid_details[2] < min_length):
-                continue
-                # Skips current video if it doesn't meet criteria
-        if (max_length != -1):
-            if (vid_details[2] > max_length):
-                continue
-        if (min_views != -1):
-            if (vid_details[3] < min_views):
-                continue
-        if (max_views != -1):
-            if (vid_details[3] > max_views):
-                continue
-        if (author != ""):
-            if (vid_details[4].casefold() != author.casefold()):
-                continue
-        if (title_contains != ""):
-            if (title_contains.casefold() not in vid_details[5].casefold()):
-                continue
-        if (is_favorite == True):
-            if (vid_details[1] != True):
-                continue
-        temp_list.append(vid_details)
-        # If video meets all criteria, it's added to the appropriate list
-    if (len(temp_list) <= 0):
-        return None
-    return(rand_vid_helper(temp_list))
+    def rand_vid_category(self, min_length = -1, max_length = -1, min_views = -1, max_views = -1, author = "", title_contains = "", is_favorite = False) -> Video_Data:
+        '''Takes a playlist and some chosen categories, and gives a video from that category. Deletes all videos from
+        different categories in a temporary list, and then takes a random video out of the temporary list.'''
+        shortened_playlist = Playlist_Data(self.title)
+        for vid_details in self.videos:
+            if (is_favorite == True):
+                if (vid_details.isFavorite != True):
+                    continue
+            if (min_length != -1):
+                if (vid_details.length < min_length):
+                    continue
+                    # Skips current video if it doesn't meet criteria
+            if (max_length != -1):
+                if (vid_details.length > max_length):
+                    continue
+            if (min_views != -1):
+                if (vid_details.views < min_views):
+                    continue
+            if (max_views != -1):
+                if (vid_details.views > max_views):
+                    continue
+            if (author != ""):
+                if (vid_details.author.casefold() != author.casefold()):
+                    continue
+            if (title_contains != ""):
+                if (title_contains.casefold() not in vid_details.title.casefold()):
+                    continue
+            shortened_playlist.add_video(vid_details)
+            # If video meets all criteria, it's added to the appropriate list
+        return(shortened_playlist.rand_vid)
+        
+    def make_video_favorite_with_title(self, videoTitle) -> bool:
+        # Go through a list of video objects
+        for video in self.videos:
+            if (videoTitle.casefold() == video.title.casefold()):
+                video.isFavorite = True
+                return True
+        # If it goes through the entire for loop, print error to console and return bool
+        print(f"{videoTitle} not found in playlist {self.title}.")
+        return False
 
-def make_video_favorite(all_vids: list, vid_title: str) -> bool:
-    '''Makes a video favorite given the video title and the list'''
-    compare_string = vid_title.casefold()
-    # Makes the comparison string casefold once rather than in each for-loop iteration
-    for vid_details in all_vids:
-        if (vid_details[5].casefold() == compare_string):
-            vid_details[1] = True
-            return True
-    # If video not found, return false to indicate function failed.
-    return False
+    def make_video_favorite_with_url(self, video_url):
+        # Go through a list of video objects
+        for video in self.videos:
+            if (video_url == video.url):
+                video.isFavorite = True
+                return True
+        # If it goes through the entire for loop, print error to console and return bool
+        print(f"{video_url} not found in playlist {self.title}, did you link it correctly?")
+        return False
+
+# def rand_vid_category_helper(all_vids, min_length = -1, max_length = -1, min_views = -1, max_views = -1, author = "", title_contains = "", is_favorite = False) -> Video_Data:
+#     '''Takes a playlist and some chosen categories, and gives a video from that category. Deletes all videos from
+#     different categories in a temporary list, and then takes a random video out of the temporary list.'''
+#     temp_list = []
+#     for vid_details in all_vids:
+#         if (min_length != -1):
+#             if (vid_details[2] < min_length):
+#                 continue
+#                 # Skips current video if it doesn't meet criteria
+#         if (max_length != -1):
+#             if (vid_details[2] > max_length):
+#                 continue
+#         if (min_views != -1):
+#             if (vid_details[3] < min_views):
+#                 continue
+#         if (max_views != -1):
+#             if (vid_details[3] > max_views):
+#                 continue
+#         if (author != ""):
+#             if (vid_details[4].casefold() != author.casefold()):
+#                 continue
+#         if (title_contains != ""):
+#             if (title_contains.casefold() not in vid_details[5].casefold()):
+#                 continue
+#         if (is_favorite == True):
+#             if (vid_details[1] != True):
+#                 continue
+#         temp_list.append(vid_details)
+#         # If video meets all criteria, it's added to the appropriate list
+#     if (len(temp_list) <= 0):
+#         return None
+#     return(rand_vid_helper(temp_list))
 
 def get_video_details(vid_details: list) -> str:
-    '''Stores all details from a video into comma-separated format'''
+    '''Stores all details from a video into comma-separated format as a helper function'''
     stringVal = ""
     for i in range(len(vid_details)-1):
         stringVal += f"{vid_details[i]}, "
@@ -139,7 +184,7 @@ def read_all_playlist_data_helper(all_playlists: list, playlist_reference: dict)
                 # Reads current line as a CSV, appending it to playlist
                 
 def add_video_details_from_file(all_vids, line_to_read):
-    '''Reads current line as a CSV, and appends it's video details to playlist'''
+    '''Reads current line as a CSV, and appends it's video details to playlist. Helper function for reading file'''
     curr_vid = []
     split_line = line_to_read.split(', ')
     part_six = split_line[5]
@@ -165,24 +210,26 @@ def store_playlist_helper(all_playlists, playlist_reference, playlist_link, titl
     if (title == None):
         title = curr_playlist.title
     # Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
-    playlist_reference[title] = len(all_playlists)
+    curr_playlist_data = Playlist_Data(title)
+    curr_playlist_data.add_details_from_playlist(curr_playlist)
     # Get all playlist data and append it to the list
-    all_playlists.append(get_playlist_helper(curr_playlist))
-    write_playlist_data(all_playlists[playlist_reference[title]], title)
+    all_playlists.append(Playlist_Data(curr_playlist.title))
+    playlist_reference[title] = len(all_playlists)-1
+    # write_playlist_data(all_playlists[playlist_reference[title]], title)
     return True
 
-def rand_vid_helper(all_vids) -> list:
-    '''Returns a random video's settings from a playlist'''
-    if (len(all_vids) <= 0):
-        return None
-    random_video_index = random.randint(0, len(all_vids)-1)
-    return all_vids[random_video_index]
+# def rand_vid_helper(all_vids: Playlist_Data) -> Video_Data:
+#     '''Returns a random video's settings from a playlist'''
+#     if (len(all_vids.videos) == 0):
+#         return None
+#     random_video_index = random.randint(0, len(all_vids)-1)
+#     return all_vids.videos[random_video_index]
 
 # Create a dictionary to store all the video titles by their index. Case-insensitive gives user more potential keys.
 playlist_reference = CaseInsensitiveDict()
 all_playlists = []
-config_reference = CaseInsensitiveDict()
-all_configs = []
+# config_reference = CaseInsensitiveDict()
+# all_configs = []
 
 bot = commands.Bot(command_prefix = '$', intents = intents)
 
@@ -197,7 +244,6 @@ bot = commands.Bot(command_prefix = '$', intents = intents)
 # for x in range(5):
 #    print(rand_vid_category(all_playlists[playlist_reference["favorite videos"]], title_contains = "angry"))
 
-
 @bot.command()
 async def random_video(ctx, arg):
     if (arg not in playlist_reference):
@@ -207,34 +253,27 @@ async def random_video(ctx, arg):
         return
     else:
         index_to_use = playlist_reference[arg]
-        video_chosen = rand_vid_helper(all_playlists[index_to_use])
+        video_chosen = (all_playlists[index_to_use]).rand_vid()
         if (video_chosen is None):
             await ctx.send("No video found!")
             return
-        await ctx.send(f"{video_chosen[0]} -- {video_chosen[5]} by {video_chosen[4]}")
+        await ctx.send(f"{video_chosen.url} -- {video_chosen.title} by {video_chosen.author}")
 
 @bot.command()
 async def save_playlist(ctx, *args):
     if (len(args) == 0):
         await ctx.send("Please provide the playlist URL")
     if (len(args) == 1):
+        await ctx.send("Attempting to store the playlist. This may take a few moments.")
         if (store_playlist_helper(all_playlists, playlist_reference, args[0])) == True:
-            await ctx.send(f"Playlist saved successfully!")
+            await ctx.send("Playlist saved successfully!")
         else:
-            await ctx.send("An error occured with storing the playlist")
+            await ctx.send("An error occured while trying to save the playlist")
     else:
         if (store_playlist_helper(all_playlists, playlist_reference, args[0], title = args[1])) == True:
             ctx.send(f"Playlists saved successfully with title {args[1]}")
         else:
-            ctx.send("An error occured while saving the playlist")
-
-# @bot.command()
-# async def help(ctx):
-#     await ctx.send("FIXME!")
-
-@bot.command()
-async def list(ctx):
-    await ctx.send("FIXME!")
+            ctx.send("An error occured while trying to save the playlist")
 
 @bot.command()
 async def random_video_with_category(ctx, *args):
@@ -250,13 +289,60 @@ async def random_video_with_category(ctx, *args):
     else:
         index_to_use = playlist_reference[args[0]]
     if (len(args) == 1):
-        video_chosen = rand_vid_helper(all_playlists[index_to_use]) 
+        video_chosen = (all_playlists[index_to_use]).rand_vid_helper()
         if video_chosen is None:
             await ctx.send("No video found!")
         else:
-            await ctx.send(f"{video_chosen[0]} -- {video_chosen[5]} by {video_chosen[4]}")
+            await ctx.send(f"{video_chosen.url} -- {video_chosen.title} by {video_chosen.author}")
     else:
         await ctx.send("FIXME!")
+
+# @bot.command()
+# async def save_playlist(ctx, *args):
+#     if (len(args) == 0):
+#         await ctx.send("Please provide the playlist URL")
+#     if (len(args) == 1):
+#         if (store_playlist_helper(all_playlists, playlist_reference, args[0])) == True:
+#             await ctx.send(f"Playlist saved successfully!")
+#         else:
+#             await ctx.send("An error occured with storing the playlist")
+#     else:
+#         if (store_playlist_helper(all_playlists, playlist_reference, args[0], title = args[1])) == True:
+#             ctx.send(f"Playlists saved successfully with title {args[1]}")
+#         else:
+#             ctx.send("An error occured while saving the playlist")
+# @bot.command()
+# async def random_video_with_category(ctx, *args):
+#     video_chosen = []
+#     if (len(args) == 0):
+#         await ctx.send("Please provide a playlist name")
+#         return
+#     if (args[0] not in playlist_reference):
+#         await ctx.send(f"{args[0]} not found as a valid playlist. Did you save this playlist yet?")
+#         await ctx.send("If you did save the playlist, make sure to state its name correctly. Use quotations around multi-word names")
+#         await ctx.send("Syntax: $random_video_with_playlist \"Playlist Name\" option categories")
+#         return
+#     else:
+#         index_to_use = playlist_reference[args[0]]
+#     if (len(args) == 1):
+#         video_chosen = rand_vid_helper(all_playlists[index_to_use]) 
+#         if video_chosen is None:
+#             await ctx.send("No video found!")
+#         else:
+#             await ctx.send(f"{video_chosen[0]} -- {video_chosen[5]} by {video_chosen[4]}")
+#     else:
+#         await ctx.send("FIXME!")
+
+
+# @bot.command()
+# async def help(ctx):
+#     await ctx.send("FIXME!")
+
+@bot.command()
+async def list(ctx):
+    await ctx.send("FIXME!")
+
+
 
 @bot.command
 async def add_config(ctx, arg):
