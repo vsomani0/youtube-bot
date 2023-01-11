@@ -29,6 +29,43 @@ class Video_Data:
         self.author = curr_vid.author
         self.title = curr_vid.title
         print("Video successfully initialized through YouTube!")
+
+class Config:
+    '''Class that stores a configuration of settings for videos. Can be called at any time.'''
+    def __init__(self, title, min_length = None, max_length = None, min_views = None, max_views = None, author = None, title_contains = None, is_favorite = None):
+        self.title = title
+        self.min_length = min_length
+        self.max_length = max_length
+        self.min_views = min_views
+        self.max_views = max_views
+        self.author = author
+        self.title_contains = title_contains
+        self.is_favorite = is_favorite
+        
+    def get_args_from_string_list(self, args: list):
+        if (args[0].casefold() != "none"):
+            self.min_length = int(args[0])
+        if (args[1].casefold() != "none"):
+            self.max_length = int(args[1])
+        if (args[2].casefold() != "none"):
+            self.min_views = int(args[2])
+        if (args[3].casefold() != "none"):
+            self.max_views = int(args[3])
+        if (args[4].casefold() != "none"):
+            self.author = args[4]
+        if (args[5].casefold() != "none"):
+            self.title_contains = args[5]
+        if (args[6].casefold() != "none"):
+            if (args[6].casefold() == "true"):
+                self.is_favorite = True
+            # If is_favorite isn't none or true, and it is a valid parameter, it must be false.
+            else:
+                self.is_favorite = False
+    def get_parameters(self) -> str:
+        '''Returns a string that prints out all the parameters/Categories in the function.'''
+        # Using str function to concatenate multiple types like int and none
+        config_settings = str(self.min_views) + " " + str(self.max_views) + " " + str(self.min_length) + " " + str(self.max_length) + " " + str(self.author) + " " + str(self.title_contains) + " " + str(self.is_favorite)
+        return config_settings
     
 class Playlist_Data:
     def __init__(self, title):
@@ -61,9 +98,17 @@ class Playlist_Data:
         random_video_index = random.randint(0, len(self.videos)-1)
         return self.videos[random_video_index]
 
-    def rand_vid_category(self, min_length = None, max_length = None, min_views = None, max_views = None, author = None, title_contains = None, is_favorite = None) -> Video_Data:
+    def rand_vid_category(self, min_length = None, max_length = None, min_views = None, max_views = None, author = None, title_contains = None, is_favorite = None, config: Config = None) -> Video_Data:
         '''Takes a playlist and some chosen categories, and gives a video from that category. Deletes all videos from
         different categories in a temporary list, and then takes a random video out of the temporary list.'''
+        if (config != None):
+            min_length = config.min_length
+            max_length = config.max_length
+            min_views = config.min_views
+            max_views = config.max_views
+            author = config.author
+            title_contains = config.title_contains
+            is_favorite = config.is_favorite
         shortened_playlist = Playlist_Data(self.title)
         for vid_details in self.videos:
             if (is_favorite != None):
@@ -111,19 +156,6 @@ class Playlist_Data:
         # If it goes through the entire for loop, print error to console and return bool
         print(f"{video_url} not found in playlist {self.title}, did you link it correctly?")
         return False
-
-class Config:
-    '''Class that stores a configuration of settings for videos. Can be called at any time.'''
-    def __init__(self, title, min_views = None, max_views = None, min_length = None, max_length = None, author = None, title_contains = None, is_favorite = None):
-        self.title = title
-        self.min_views = min_views
-        self.max_views = max_views
-        self.min_length = min_length
-        self.max_length = max_length
-        self.author = author
-        self.title_contains = title_contains
-        self.is_favorite = is_favorite
-        
 
 def get_video_details(vid_details: list) -> str:
     '''Stores all details from a video into comma-separated format as a helper function'''
@@ -201,20 +233,45 @@ def store_playlist_helper(all_playlists, playlist_reference, playlist_link, titl
     # write_playlist_data(all_playlists[playlist_reference[title]], title)
     return True
 
-# def rand_vid_helper(all_vids: Playlist_Data) -> Video_Data:
-#     '''Returns a random video's settings from a playlist'''
-#     if (len(all_vids.videos) == 0):
-#         return None
-#     random_video_index = random.randint(0, len(all_vids)-1)
-#     return all_vids.videos[random_video_index]
-
 # Create a dictionary to store all the video titles by their index. Case-insensitive gives user more potential keys.
 playlist_reference = CaseInsensitiveDict()
 all_playlists = []
+config_reference = CaseInsensitiveDict()
+all_configs = []
 # config_reference = CaseInsensitiveDict()
 # all_configs = []
 
 bot = commands.Bot(command_prefix = '$', intents = intents)
+
+
+def check_valid_categories(args: list) -> str:
+    '''Checks for an error in giving categories for rand_vid_category. Either returns the error message, which the discord
+    bot can asynchronously send, or returns no error to indicate no error.'''
+    error_message = ""
+    if (len(args) != 7):
+        error_message = "Wrong number of arguments"
+        return error_message
+    if (args[0].casefold() != "none"):
+        if not (args[0].isdigit()):
+            error_message = ("Min time needs to be a number!")
+            return error_message
+    if (args[1].casefold() != "none"):
+        if not (args[1].isdigit()):
+            error_message = ("Max time needs to be a number!")
+            return error_message
+    if (args[2].casefold() != "none"):
+        if not (args[2].isdigit()):
+            error_message = ("Min views needs to be a number!")
+            return error_message
+    if (args[3].casefold() != "none"):
+        if not (args[3].isdigit()):
+            error_message = ("Max views needs to be a number!")
+            return error_message
+    if (args[6].casefold() != "none"):
+        if (args[6].casefold() != "true" & args[7].casefold() != "false"):
+            error_message = ("Is favorite needs to be either \"true\" or \"false\" or \"none\"")
+            return error_message
+    return "no error"
 
 @bot.command()
 async def random_video(ctx, arg):
@@ -261,14 +318,15 @@ async def random_video_with_category(ctx, *args):
     if (args[0] not in playlist_reference):
         await ctx.send(f"{args[0]} not found as a valid playlist. Did you save this playlist yet?")
         await ctx.send("If you did save the playlist, make sure to state its name correctly. Use quotations around multi-word names")
-        await ctx.send("Syntax: $random_video_with_playlist \"Playlist Name\" option categories")
         return
     else:
         index_to_use = playlist_reference[args[0]]
     if (len(args) == 2):
-        await ctx.send("FIXME!")
-        return
-        video_chosen = (all_playlists[index_to_use]).rand_vid_helper()
+        if (args[1] not in config_reference):
+            await ctx.send(f"{args[1]} not found as a valid config.")
+            await ctx.send("Make sure to spell config name correctly. Use quotations around multi-word names")
+            return
+        video_chosen = (all_playlists[index_to_use]).rand_vid_category(config_reference[args[1]])
         if video_chosen is None:
             await ctx.send("No video found with selected criteria!")
         else:
@@ -286,51 +344,47 @@ async def list(ctx):
 
 @bot.command()
 async def add_config(ctx, *args):
-    if (len(args) != 8):
-        await ctx.send("Incorrect number of arguments. Please provide values for each criteria.")
-        await ctx.send("Syntax: $add_config config_name min_time_mins max_time_mins min_views_val max_views_val author_name \"title_contains\" is_favorite")
-        await ctx.send("For any paramater with no intended value, simply write None.")
-        await ctx.send("For example, to create a config named test with settings between 5 and 10 minutes and videos titled battle")
-        await ctx.send("Type the following: $add_config test 5 10 none 1000000 none \"Battle\" True")
+    # if (len(args) != 8):
+    #     await ctx.send("Incorrect number of arguments. Please provide values for each criteria.")
+    #     await ctx.send("Syntax: $add_config config_name min_time_mins max_time_mins min_views_val max_views_val author_name \"title_contains\" is_favorite")
+    #     await ctx.send("For any paramater with no intended value, simply state none.")
+    #     return
+    # curr_config = Config(args[0])
+    # if (args[1].casefold() != "none"):
+    #     if not (args[1].isdigit()):
+    #         await ctx.send("Config creation failed. Min time needs to be a number!")
+    #         return
+    # if (args[2].casefold() != "none"):
+    #     if not (args[2].isdigit()):
+    #         await ctx.send("Config creation failed. Max time needs to be a number!")
+    #         return
+    # if (args[3].casefold() != "none"):
+    #     if not (args[3].isdigit()):
+    #         await ctx.send("Config creation failed. Min views needs to be a number!")
+    #         return
+    # if (args[4].casefold() != "none"):
+    #     if not (args[4].isdigit()):
+    #         await ctx.send("Config creation failed. Max views needs to be a number!")
+    #         return
+    # if (args[7].casefold() != "none"):
+    #     if (args[7].casefold() != "true" & args[7].casefold() != "false"):
+    #         await(ctx.send("Config creation failed. is favorite needs to be either \"true\" or \"false\" or \"none\""))
+    #         return
+
+    # await ctx.send(f"{curr_config.title} {curr_config.min_length} {curr_config.max_length} {curr_config.min_views} {curr_config.max_views}")
+    # await ctx.send(f"{curr_config.author} {curr_config.title_contains} {curr_config.is_favorite}")
+
+    # Check if there is any error with the user inputted data.
+    error_message = check_valid_categories(args[1:])
+    if (error_message != "no error"):
+        await ctx.send(f"Error creating config: {error_message}")
         return
     curr_config = Config(args[0])
-    if (args[1].casefold() != "none"):
-        if not (args[1].isdigit()):
-            await ctx.send("Config creation failed. Second argument needs to be a number!")
-            return
-        curr_config.min_length = args[1]
-    if (args[2].casefold() != "none"):
-        if not (args[2].isdigit()):
-            await ctx.send("Config creation failed. Third argument needs to be a number!")
-            return
-        curr_config.max_length = args[2]
-    if (args[3].casefold() != "none"):
-        if not (args[3].isdigit()):
-            await ctx.send("Config creation failed. Fourth argument needs to be a number!")
-            return
-        curr_config.min_views = args[3]
-    if (args[4].casefold() != "none"):
-        if not (args[4].isdigit()):
-            await ctx.send("Config creation failed. Fifth argument needs to be a number!")
-            return
-        curr_config.max_views = args[4]
-    if (args[5].casefold() != "none"):
-        curr_config.author = args[5]
-    if (args[6].casefold() != "none"):
-        curr_config.title_contains = args[6]
-    if (args[7].casefold() != "none"):
-        if (args[7].casefold() == "true"):
-            curr_config.is_favorite = True
-        elif (args[7].casefold() == "false"):
-            curr_config.is_favorite = False
-        else:
-            await(ctx.send("Config creation failed. Eighth argument needs to be either \"true\" or \"false\""))
-            return
-    await ctx.send(f"{curr_config.title} {curr_config.min_length} {curr_config.max_length} {curr_config.min_views} {curr_config.max_views}")
-    await ctx.send(f"{curr_config.author} {curr_config.title_contains} {curr_config.is_favorite}")
-        
-
-
+    curr_config.get_args_from_string_list(args[1:])
+    all_configs.append(curr_config)
+    config_reference[curr_config.title] = len(all_configs) - 1
+    await ctx.send(f"Successfully creating config named {curr_config.title}")
+    await ctx.send(f"Parameters: {curr_config.get_parameters()}")
 # Use with a discord key -- key is hidden in a different file
 with open ("key.txt", "r", encoding= "utf-8") as f:
     key = f.readline()
