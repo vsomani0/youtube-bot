@@ -9,29 +9,32 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 class Video_Data:
-    def __init__(self, url, isFavorite, lengthMinutes, views, author, title):
+    def __init__(self, url, is_favorite, lengthMinutes, views, author, title):
         self.url = url
-        self.isFavorite = isFavorite
+        self.is_favorite = is_favorite
         self.length = lengthMinutes
         self.views = views
         self.author = author
         self.title = title
+        print("Video successfully initialized directly")
 
     def __init__(self, curr_vid: YouTube):
         self.url = curr_vid.watch_url
         # Adds video URL to list
-        self.isFavorite = False
+        self.is_favorite = False
         # By default, all videos are false, to indicate they are not a favorite
         self.length = curr_vid.length/60
         # Add time of video in minutes to list
         self.views = curr_vid.views
         self.author = curr_vid.author
         self.title = curr_vid.title
+        print("Video successfully initialized through YouTube!")
     
 class Playlist_Data:
     def __init__(self, title):
         self.title = title
         self.videos = []
+        print("Empty playlist successfully initialize!")
 
     def add_video(self, video: Video_Data):
         self.videos.append(video)
@@ -58,31 +61,31 @@ class Playlist_Data:
         random_video_index = random.randint(0, len(self.videos)-1)
         return self.videos[random_video_index]
 
-    def rand_vid_category(self, min_length = -1, max_length = -1, min_views = -1, max_views = -1, author = "", title_contains = "", is_favorite = False) -> Video_Data:
+    def rand_vid_category(self, min_length = None, max_length = None, min_views = None, max_views = None, author = None, title_contains = None, is_favorite = None) -> Video_Data:
         '''Takes a playlist and some chosen categories, and gives a video from that category. Deletes all videos from
         different categories in a temporary list, and then takes a random video out of the temporary list.'''
         shortened_playlist = Playlist_Data(self.title)
         for vid_details in self.videos:
-            if (is_favorite == True):
-                if (vid_details.isFavorite != True):
+            if (is_favorite != None):
+                if (vid_details.is_favorite != is_favorite):
                     continue
-            if (min_length != -1):
+            if (min_length != None):
                 if (vid_details.length < min_length):
                     continue
                     # Skips current video if it doesn't meet criteria
-            if (max_length != -1):
+            if (max_length != None):
                 if (vid_details.length > max_length):
                     continue
-            if (min_views != -1):
+            if (min_views != None):
                 if (vid_details.views < min_views):
                     continue
-            if (max_views != -1):
+            if (max_views != None):
                 if (vid_details.views > max_views):
                     continue
-            if (author != ""):
+            if (author != None):
                 if (vid_details.author.casefold() != author.casefold()):
                     continue
-            if (title_contains != ""):
+            if (title_contains != None):
                 if (title_contains.casefold() not in vid_details.title.casefold()):
                     continue
             shortened_playlist.add_video(vid_details)
@@ -93,7 +96,7 @@ class Playlist_Data:
         # Go through a list of video objects
         for video in self.videos:
             if (videoTitle.casefold() == video.title.casefold()):
-                video.isFavorite = True
+                video.is_favorite = True
                 return True
         # If it goes through the entire for loop, print error to console and return bool
         print(f"{videoTitle} not found in playlist {self.title}.")
@@ -103,44 +106,24 @@ class Playlist_Data:
         # Go through a list of video objects
         for video in self.videos:
             if (video_url == video.url):
-                video.isFavorite = True
+                video.is_favorite = True
                 return True
         # If it goes through the entire for loop, print error to console and return bool
         print(f"{video_url} not found in playlist {self.title}, did you link it correctly?")
         return False
 
-# def rand_vid_category_helper(all_vids, min_length = -1, max_length = -1, min_views = -1, max_views = -1, author = "", title_contains = "", is_favorite = False) -> Video_Data:
-#     '''Takes a playlist and some chosen categories, and gives a video from that category. Deletes all videos from
-#     different categories in a temporary list, and then takes a random video out of the temporary list.'''
-#     temp_list = []
-#     for vid_details in all_vids:
-#         if (min_length != -1):
-#             if (vid_details[2] < min_length):
-#                 continue
-#                 # Skips current video if it doesn't meet criteria
-#         if (max_length != -1):
-#             if (vid_details[2] > max_length):
-#                 continue
-#         if (min_views != -1):
-#             if (vid_details[3] < min_views):
-#                 continue
-#         if (max_views != -1):
-#             if (vid_details[3] > max_views):
-#                 continue
-#         if (author != ""):
-#             if (vid_details[4].casefold() != author.casefold()):
-#                 continue
-#         if (title_contains != ""):
-#             if (title_contains.casefold() not in vid_details[5].casefold()):
-#                 continue
-#         if (is_favorite == True):
-#             if (vid_details[1] != True):
-#                 continue
-#         temp_list.append(vid_details)
-#         # If video meets all criteria, it's added to the appropriate list
-#     if (len(temp_list) <= 0):
-#         return None
-#     return(rand_vid_helper(temp_list))
+class Config:
+    '''Class that stores a configuration of settings for videos. Can be called at any time.'''
+    def __init__(self, title, min_views = None, max_views = None, min_length = None, max_length = None, author = None, title_contains = None, is_favorite = None):
+        self.title = title
+        self.min_views = min_views
+        self.max_views = max_views
+        self.min_length = min_length
+        self.max_length = max_length
+        self.author = author
+        self.title_contains = title_contains
+        self.is_favorite = is_favorite
+        
 
 def get_video_details(vid_details: list) -> str:
     '''Stores all details from a video into comma-separated format as a helper function'''
@@ -213,7 +196,7 @@ def store_playlist_helper(all_playlists, playlist_reference, playlist_link, titl
     curr_playlist_data = Playlist_Data(title)
     curr_playlist_data.add_details_from_playlist(curr_playlist)
     # Get all playlist data and append it to the list
-    all_playlists.append(Playlist_Data(curr_playlist.title))
+    all_playlists.append(curr_playlist_data)
     playlist_reference[title] = len(all_playlists)-1
     # write_playlist_data(all_playlists[playlist_reference[title]], title)
     return True
@@ -232,17 +215,6 @@ all_playlists = []
 # all_configs = []
 
 bot = commands.Bot(command_prefix = '$', intents = intents)
-
-# Give playlists purely to test
-# pl_link = "https://www.youtube.com/playlist?list=PLEhSYc84M4xCljuyXNxEgVHLgdCzAm0vu"
-# pl_link2 = "https://www.youtube.com/playlist?list=PLUXSZMIiUfFS6azeerXYR4gQExSwPCx-s"
-# store_playlist(all_playlists, playlist_reference, pl_link)
-# store_playlist(all_playlists, playlist_reference, pl_link2)
-# read_all_playlist_data(all_playlists, playlist_reference)
-
-# Testing the playlist
-# for x in range(5):
-#    print(rand_vid_category(all_playlists[playlist_reference["favorite videos"]], title_contains = "angry"))
 
 @bot.command()
 async def random_video(ctx, arg):
@@ -281,6 +253,11 @@ async def random_video_with_category(ctx, *args):
     if (len(args) == 0):
         await ctx.send("Please provide a playlist name")
         return
+    if (len(args) != 2 & len(args) != 6):
+        await ctx.send("Invalid number of arguments.")
+        await ctx.send("If config is set, syntax: $random_video_with_category \"Playlist Name\" \"Config Name\" ")
+        await ctx.send("If not, syntax: $random_video_with_category \"Playlist Name\" min_length max_length min_views max_views author_name is_favorite")
+        await ctx.send("For every category intended to not be set, \"-\" or \"None\" indicate it is not set")
     if (args[0] not in playlist_reference):
         await ctx.send(f"{args[0]} not found as a valid playlist. Did you save this playlist yet?")
         await ctx.send("If you did save the playlist, make sure to state its name correctly. Use quotations around multi-word names")
@@ -288,51 +265,16 @@ async def random_video_with_category(ctx, *args):
         return
     else:
         index_to_use = playlist_reference[args[0]]
-    if (len(args) == 1):
+    if (len(args) == 2):
+        await ctx.send("FIXME!")
+        return
         video_chosen = (all_playlists[index_to_use]).rand_vid_helper()
         if video_chosen is None:
-            await ctx.send("No video found!")
+            await ctx.send("No video found with selected criteria!")
         else:
             await ctx.send(f"{video_chosen.url} -- {video_chosen.title} by {video_chosen.author}")
-    else:
-        await ctx.send("FIXME!")
-
-# @bot.command()
-# async def save_playlist(ctx, *args):
-#     if (len(args) == 0):
-#         await ctx.send("Please provide the playlist URL")
-#     if (len(args) == 1):
-#         if (store_playlist_helper(all_playlists, playlist_reference, args[0])) == True:
-#             await ctx.send(f"Playlist saved successfully!")
-#         else:
-#             await ctx.send("An error occured with storing the playlist")
-#     else:
-#         if (store_playlist_helper(all_playlists, playlist_reference, args[0], title = args[1])) == True:
-#             ctx.send(f"Playlists saved successfully with title {args[1]}")
-#         else:
-#             ctx.send("An error occured while saving the playlist")
-# @bot.command()
-# async def random_video_with_category(ctx, *args):
-#     video_chosen = []
-#     if (len(args) == 0):
-#         await ctx.send("Please provide a playlist name")
-#         return
-#     if (args[0] not in playlist_reference):
-#         await ctx.send(f"{args[0]} not found as a valid playlist. Did you save this playlist yet?")
-#         await ctx.send("If you did save the playlist, make sure to state its name correctly. Use quotations around multi-word names")
-#         await ctx.send("Syntax: $random_video_with_playlist \"Playlist Name\" option categories")
-#         return
-#     else:
-#         index_to_use = playlist_reference[args[0]]
-#     if (len(args) == 1):
-#         video_chosen = rand_vid_helper(all_playlists[index_to_use]) 
-#         if video_chosen is None:
-#             await ctx.send("No video found!")
-#         else:
-#             await ctx.send(f"{video_chosen[0]} -- {video_chosen[5]} by {video_chosen[4]}")
-#     else:
-#         await ctx.send("FIXME!")
-
+    if (len(args) == 6):
+        await ctx.send("FIXME")
 
 # @bot.command()
 # async def help(ctx):
@@ -342,15 +284,52 @@ async def random_video_with_category(ctx, *args):
 async def list(ctx):
     await ctx.send("FIXME!")
 
+@bot.command()
+async def add_config(ctx, *args):
+    if (len(args) != 8):
+        await ctx.send("Incorrect number of arguments. Please provide values for each criteria.")
+        await ctx.send("Syntax: $add_config config_name min_time_mins max_time_mins min_views_val max_views_val author_name \"title_contains\" is_favorite")
+        await ctx.send("For any paramater with no intended value, simply write None.")
+        await ctx.send("For example, to create a config named test with settings between 5 and 10 minutes and videos titled battle")
+        await ctx.send("Type the following: $add_config test 5 10 none 1000000 none \"Battle\" True")
+        return
+    curr_config = Config(args[0])
+    if (args[1].casefold() != "none"):
+        if not (args[1].isdigit()):
+            await ctx.send("Config creation failed. Second argument needs to be a number!")
+            return
+        curr_config.min_length = args[1]
+    if (args[2].casefold() != "none"):
+        if not (args[2].isdigit()):
+            await ctx.send("Config creation failed. Third argument needs to be a number!")
+            return
+        curr_config.max_length = args[2]
+    if (args[3].casefold() != "none"):
+        if not (args[3].isdigit()):
+            await ctx.send("Config creation failed. Fourth argument needs to be a number!")
+            return
+        curr_config.min_views = args[3]
+    if (args[4].casefold() != "none"):
+        if not (args[4].isdigit()):
+            await ctx.send("Config creation failed. Fifth argument needs to be a number!")
+            return
+        curr_config.max_views = args[4]
+    if (args[5].casefold() != "none"):
+        curr_config.author = args[5]
+    if (args[6].casefold() != "none"):
+        curr_config.title_contains = args[6]
+    if (args[7].casefold() != "none"):
+        if (args[7].casefold() == "true"):
+            curr_config.is_favorite = True
+        elif (args[7].casefold() == "false"):
+            curr_config.is_favorite = False
+        else:
+            await(ctx.send("Config creation failed. Eighth argument needs to be either \"true\" or \"false\""))
+            return
+    await ctx.send(f"{curr_config.title} {curr_config.min_length} {curr_config.max_length} {curr_config.min_views} {curr_config.max_views}")
+    await ctx.send(f"{curr_config.author} {curr_config.title_contains} {curr_config.is_favorite}")
+        
 
-
-@bot.command
-async def add_config(ctx, arg):
-    curr_config = []
-    await ctx.send("Please enter min views")
-    curr_config.append(bot.wait_for(int, timeout = 60.0))
-    # How do I read the users' data with the commands bot and append it
-    await ctx.send(curr_config[0])
 
 # Use with a discord key -- key is hidden in a different file
 with open ("key.txt", "r", encoding= "utf-8") as f:
