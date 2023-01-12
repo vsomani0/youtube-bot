@@ -41,7 +41,17 @@ class Config:
         self.author = author
         self.title_contains = title_contains
         self.is_favorite = is_favorite
-        
+    
+    def set_null(self):
+        self.title = None
+        self.min_length = None
+        self.max_length = None
+        self.min_views = None
+        self.max_views = None
+        self.author = None
+        self.title_contains = None
+        self.is_favorite = None
+
     def get_args_from_string_list(self, args: list):
         if (args[0].casefold() != "none"):
             self.min_length = int(args[0])
@@ -135,7 +145,7 @@ class Playlist_Data:
                     continue
             shortened_playlist.add_video(vid_details)
             # If video meets all criteria, it's added to the appropriate list
-        return(shortened_playlist.rand_vid)
+        return shortened_playlist.rand_vid()
         
     def make_video_favorite_with_title(self, videoTitle) -> bool:
         # Go through a list of video objects
@@ -238,6 +248,7 @@ playlist_reference = CaseInsensitiveDict()
 all_playlists = []
 config_reference = CaseInsensitiveDict()
 all_configs = []
+last_config = Config("last config")
 # config_reference = CaseInsensitiveDict()
 # all_configs = []
 
@@ -310,29 +321,41 @@ async def random_video_with_category(ctx, *args):
     if (len(args) == 0):
         await ctx.send("Please provide a playlist name")
         return
-    if (len(args) != 2 & len(args) != 6):
+    if (len(args) != 2 & len(args) != 8):
         await ctx.send("Invalid number of arguments.")
         await ctx.send("If config is set, syntax: $random_video_with_category \"Playlist Name\" \"Config Name\" ")
-        await ctx.send("If not, syntax: $random_video_with_category \"Playlist Name\" min_length max_length min_views max_views author_name is_favorite")
+        await ctx.send("If not, syntax: $random_video_with_category \"Playlist Name\" min_length max_length min_views max_views author_name title_contains is_favorite")
         await ctx.send("For every category intended to not be set, \"-\" or \"None\" indicate it is not set")
     if (args[0] not in playlist_reference):
         await ctx.send(f"{args[0]} not found as a valid playlist. Did you save this playlist yet?")
         await ctx.send("If you did save the playlist, make sure to state its name correctly. Use quotations around multi-word names")
         return
-    else:
-        index_to_use = playlist_reference[args[0]]
+    playlist_to_use = all_playlists[playlist_reference[args[0]]]
     if (len(args) == 2):
+        
         if (args[1] not in config_reference):
             await ctx.send(f"{args[1]} not found as a valid config.")
             await ctx.send("Make sure to spell config name correctly. Use quotations around multi-word names")
             return
-        video_chosen = (all_playlists[index_to_use]).rand_vid_category(config_reference[args[1]])
+        config_to_use = all_configs[config_reference[args[1]]]
+        await ctx.send(f"Attempting to find playlist in {config_to_use.title}")
+        video_chosen = playlist_to_use.rand_vid_category(config = config_to_use)
+        print(video_chosen)
         if video_chosen is None:
             await ctx.send("No video found with selected criteria!")
         else:
             await ctx.send(f"{video_chosen.url} -- {video_chosen.title} by {video_chosen.author}")
-    if (len(args) == 6):
-        await ctx.send("FIXME")
+    if (len(args) == 8):
+        error_message = check_valid_categories(args[1:])
+        if (error_message != "no error"):
+            await ctx.send(f"Error in categories with playlist: {error_message}")
+            return
+        last_config.get_args_from_string_list(args[1:])
+        video_chosen = (playlist_to_use.rand_vid_category(last_config))
+        if video_chosen is None:
+            await ctx.send("No video found with selected criteria!")
+        else:
+            await ctx.send(f"{video_chosen.url} -- {video_chosen.title} by {video_chosen.author}")
 
 # @bot.command()
 # async def help(ctx):
@@ -344,37 +367,6 @@ async def list(ctx):
 
 @bot.command()
 async def add_config(ctx, *args):
-    # if (len(args) != 8):
-    #     await ctx.send("Incorrect number of arguments. Please provide values for each criteria.")
-    #     await ctx.send("Syntax: $add_config config_name min_time_mins max_time_mins min_views_val max_views_val author_name \"title_contains\" is_favorite")
-    #     await ctx.send("For any paramater with no intended value, simply state none.")
-    #     return
-    # curr_config = Config(args[0])
-    # if (args[1].casefold() != "none"):
-    #     if not (args[1].isdigit()):
-    #         await ctx.send("Config creation failed. Min time needs to be a number!")
-    #         return
-    # if (args[2].casefold() != "none"):
-    #     if not (args[2].isdigit()):
-    #         await ctx.send("Config creation failed. Max time needs to be a number!")
-    #         return
-    # if (args[3].casefold() != "none"):
-    #     if not (args[3].isdigit()):
-    #         await ctx.send("Config creation failed. Min views needs to be a number!")
-    #         return
-    # if (args[4].casefold() != "none"):
-    #     if not (args[4].isdigit()):
-    #         await ctx.send("Config creation failed. Max views needs to be a number!")
-    #         return
-    # if (args[7].casefold() != "none"):
-    #     if (args[7].casefold() != "true" & args[7].casefold() != "false"):
-    #         await(ctx.send("Config creation failed. is favorite needs to be either \"true\" or \"false\" or \"none\""))
-    #         return
-
-    # await ctx.send(f"{curr_config.title} {curr_config.min_length} {curr_config.max_length} {curr_config.min_views} {curr_config.max_views}")
-    # await ctx.send(f"{curr_config.author} {curr_config.title_contains} {curr_config.is_favorite}")
-
-    # Check if there is any error with the user inputted data.
     error_message = check_valid_categories(args[1:])
     if (error_message != "no error"):
         await ctx.send(f"Error creating config: {error_message}")
