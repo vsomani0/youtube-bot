@@ -390,3 +390,4 @@ async def add_config(ctx, *args):
 with open ("key.txt", "r", encoding= "utf-8") as f:
     key = f.readline()
 bot.run(key)
+# a
