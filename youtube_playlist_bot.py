@@ -3,7 +3,6 @@ from discord.ext import commands
 from pytube import YouTube, Playlist
 import pytube.exceptions
 import random
-from requests.structures import CaseInsensitiveDict
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -16,7 +15,6 @@ class Video_Data:
         self.views = views
         self.author = author
         self.title = title
-        print("Video successfully initialized directly")
 
     def __init__(self, curr_vid: YouTube):
         self.url = curr_vid.watch_url
@@ -28,12 +26,11 @@ class Video_Data:
         self.views = curr_vid.views
         self.author = curr_vid.author
         self.title = curr_vid.title
-        print("Video successfully initialized through YouTube!")
 
 class Config:
     '''Class that stores a configuration of settings for videos. Can be called at any time.'''
     def __init__(self, title, min_length = None, max_length = None, min_views = None, max_views = None, author = None, title_contains = None, is_favorite = None):
-        self.title = title
+        self.title = title.casefold()
         self.min_length = min_length
         self.max_length = max_length
         self.min_views = min_views
@@ -74,12 +71,14 @@ class Config:
     def get_parameters(self) -> str:
         '''Returns a string that prints out all the parameters/Categories in the function.'''
         # Using str function to concatenate multiple types like int and none
-        config_settings = str(self.min_views) + " " + str(self.max_views) + " " + str(self.min_length) + " " + str(self.max_length) + " " + str(self.author) + " " + str(self.title_contains) + " " + str(self.is_favorite)
+        config_settings = (f"""min length(minutes): {str(self.min_length)}, max length(minutes): \
+{str(self.max_length)}, min_views: {str(self.min_views)}, max_views: self.max_views, author: {str(self.author)},\
+title contains: {str(self.title_contains)}, is_favorite: {str(self.is_favorite)}""")
         return config_settings
     
 class Playlist_Data:
-    def __init__(self, title):
-        self.title = title
+    def __init__(self, title: str):
+        self.title = title.casefold()
         self.videos = []
         print("Empty playlist successfully initialize!")
 
@@ -88,7 +87,7 @@ class Playlist_Data:
 
     def add_details_from_playlist(self, playlist: Playlist):
         '''Extracts all videos from each video in playlist, and adds into videos list .'''
-        print(f'Downloading all video data from playlist \"{playlist.title}\". Please wait a few moments.')
+        print(f'Downloading all video data from playlist \"{self.title}\". Please wait a few moments.')
         for video in playlist:
             try:
                 # Get the video details from its link using the Pytube library
@@ -187,14 +186,14 @@ def write_playlist_data(all_vids: list, playlistTitle: str) -> None:
         f.write("\n")
     print("Playlist Data stored to file!")
 
-def read_all_playlist_data_helper(all_playlists: list, playlist_reference: dict):
+def read_all_playlist_data_helper(all_playlists: list):
     with open("user_data.txt", "r", encoding = "utf-8") as f:
         while True:
             curr_line = f.readline().strip()
             if curr_line == (''):
                 return
             print(f"Extracting details of playlist titled: {curr_line}")
-            playlist_reference[curr_line] = len(all_playlists)
+            # playlist_reference[curr_line] = len(all_playlists)
             # currLine stores the title first if the file doesn't immediately end. Adds title to dictionary at right index.
             curr_playlist = []
             all_playlists.append(curr_playlist)
@@ -228,25 +227,38 @@ def add_video_details_from_file(all_vids, line_to_read):
     curr_vid.append(part_six)
     all_vids.append(curr_vid)
 
-def store_playlist_helper(all_playlists, playlist_reference, playlist_link, title = None) -> bool:
+def store_playlist_helper(all_playlists, playlist_link, title = None) -> bool:
     '''Stores playlist in list, dictionary, and file, where it can be re-extracted'''
     curr_playlist = Playlist(playlist_link)
     # If no extra title is given, title automatically takes the title of the playlist
-    if (title == None):
+    if (title is None):
         title = curr_playlist.title
     # Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
     curr_playlist_data = Playlist_Data(title)
     curr_playlist_data.add_details_from_playlist(curr_playlist)
     # Get all playlist data and append it to the list
     all_playlists.append(curr_playlist_data)
-    playlist_reference[title] = len(all_playlists)-1
     # write_playlist_data(all_playlists[playlist_reference[title]], title)
     return True
 
+def find_playlist(all_playlists: list, playlist_name: str):
+    '''Finds and returns playlist with name, -1 if no playlist with matching title'''
+    casefold_playlist_name = playlist_name.casefold()
+    for curr_playlist in all_playlists:
+        if (curr_playlist.title == casefold_playlist_name):
+            return curr_playlist
+    return None
+
+def find_config(all_configs: list, config_name: str):
+    '''Finds and returns config with matching name'''
+    casefold_config_name = config_name.casefold()
+    for curr_config in all_configs:
+        if (curr_config.title == casefold_config_name):
+            return curr_config
+    return None
+
 # Create a dictionary to store all the video titles by their index. Case-insensitive gives user more potential keys.
-playlist_reference = CaseInsensitiveDict()
 all_playlists = []
-config_reference = CaseInsensitiveDict()
 all_configs = []
 last_config = Config("last config")
 # config_reference = CaseInsensitiveDict()
@@ -259,8 +271,11 @@ def check_valid_categories(args: list) -> str:
     '''Checks for an error in giving categories for rand_vid_category. Either returns the error message, which the discord
     bot can asynchronously send, or returns no error to indicate no error.'''
     error_message = ""
-    if (len(args) != 7):
-        error_message = "Wrong number of arguments"
+    if (len(args) < 7):
+        error_message = "Too few arguments. Need 7(min_length, max_length, min_views, max_views, author, title_contains, isFavorite)"
+        return error_message
+    if (len(args) > 7):
+        error_message = "Too many arguments. Need 7(min_length, max_length, min_views, max_views, author, title_contains, isFavorite)"
         return error_message
     if (args[0].casefold() != "none"):
         if not (args[0].isdigit()):
@@ -286,14 +301,14 @@ def check_valid_categories(args: list) -> str:
 
 @bot.command()
 async def random_video(ctx, arg):
-    if (arg not in playlist_reference):
+    playlist_to_use = find_playlist(all_playlists, arg)
+    if (playlist_to_use is None):
         await ctx.send(f"{arg} not found as a valid playlist. Did you save this playlist yet?")
         await ctx.send("If you did save the playlist, make sure to state its name correctly. Use quotations around multi-word names")
         await ctx.send("Syntax: $random_video \"Playlist Name\"")
         return
     else:
-        index_to_use = playlist_reference[arg]
-        video_chosen = (all_playlists[index_to_use]).rand_vid()
+        video_chosen = (playlist_to_use).rand_vid()
         if (video_chosen is None):
             await ctx.send("No video found!")
             return
@@ -303,17 +318,21 @@ async def random_video(ctx, arg):
 async def save_playlist(ctx, *args):
     if (len(args) == 0):
         await ctx.send("Please provide the playlist URL")
+        return
     if (len(args) == 1):
         await ctx.send("Attempting to store the playlist. This may take a few moments.")
-        if (store_playlist_helper(all_playlists, playlist_reference, args[0])) == True:
-            await ctx.send("Playlist saved successfully!")
+        if (store_playlist_helper(all_playlists, playlist_link = args[0])) == True:
+            playlist_title = all_playlists[len(all_playlists)-1].title
+            playlist_num_vids = len(all_playlists[len(all_playlists)-1].videos)
+            await ctx.send(f"Playlist {playlist_title} with {playlist_num_vids} videos saved successfully!")
+            return
         else:
             await ctx.send("An error occured while trying to save the playlist")
+            return
+    if (store_playlist_helper(all_playlists, args[0], title = args[1])) == True:
+        ctx.send(f"Playlists saved successfully with title {args[1]}")
     else:
-        if (store_playlist_helper(all_playlists, playlist_reference, args[0], title = args[1])) == True:
-            ctx.send(f"Playlists saved successfully with title {args[1]}")
-        else:
-            ctx.send("An error occured while trying to save the playlist")
+        ctx.send("An error occured while trying to save the playlist")
 
 @bot.command()
 async def random_video_with_category(ctx, *args):
@@ -321,24 +340,26 @@ async def random_video_with_category(ctx, *args):
     if (len(args) == 0):
         await ctx.send("Please provide a playlist name")
         return
-    if (len(args) != 2 & len(args) != 8):
-        await ctx.send("Invalid number of arguments.")
+    if (len(args) != 2) & (len(args) != 8):
+        await ctx.send("Invalid number of arguments. Need either 2 or 8 arguments AFTER initial random_video_with_category call")
         await ctx.send("If config is set, syntax: $random_video_with_category \"Playlist Name\" \"Config Name\" ")
         await ctx.send("If not, syntax: $random_video_with_category \"Playlist Name\" min_length max_length min_views max_views author_name title_contains is_favorite")
-        await ctx.send("For every category intended to not be set, \"-\" or \"None\" indicate it is not set")
-    if (args[0] not in playlist_reference):
+        await ctx.send("For every category intended to not be set, \"None\" indicates it is not set")
+        return
+    playlist_to_use = find_playlist(all_playlists, args[0])
+    if (playlist_to_use is None):
         await ctx.send(f"{args[0]} not found as a valid playlist. Did you save this playlist yet?")
         await ctx.send("If you did save the playlist, make sure to state its name correctly. Use quotations around multi-word names")
         return
-    playlist_to_use = all_playlists[playlist_reference[args[0]]]
     if (len(args) == 2):
-        
-        if (args[1] not in config_reference):
-            await ctx.send(f"{args[1]} not found as a valid config.")
-            await ctx.send("Make sure to spell config name correctly. Use quotations around multi-word names")
-            return
-        config_to_use = all_configs[config_reference[args[1]]]
-        await ctx.send(f"Attempting to find playlist in {config_to_use.title}")
+        if (args[1].casefold() == "last"):
+            config_to_use = last_config
+        else:
+            config_to_use = find_config(all_configs, args[1])
+            if (config_to_use is None):
+                await ctx.send(f"{args[1]} not found as a valid config.")
+                await ctx.send("Make sure to spell config name correctly. Use quotations around multi-word names")
+                return
         video_chosen = playlist_to_use.rand_vid_category(config = config_to_use)
         print(video_chosen)
         if video_chosen is None:
@@ -351,7 +372,7 @@ async def random_video_with_category(ctx, *args):
             await ctx.send(f"Error in categories with playlist: {error_message}")
             return
         last_config.get_args_from_string_list(args[1:])
-        video_chosen = (playlist_to_use.rand_vid_category(last_config))
+        video_chosen = (playlist_to_use.rand_vid_category(config = last_config))
         if video_chosen is None:
             await ctx.send("No video found with selected criteria!")
         else:
@@ -374,11 +395,20 @@ async def add_config(ctx, *args):
     curr_config = Config(args[0])
     curr_config.get_args_from_string_list(args[1:])
     all_configs.append(curr_config)
-    config_reference[curr_config.title] = len(all_configs) - 1
-    await ctx.send(f"Successfully creating config named {curr_config.title}")
+    await ctx.send(f"Successfully creating config named {curr_config.title.casefold()}")
     await ctx.send(f"Parameters: {curr_config.get_parameters()}")
+
+@bot.command()
+async def get_config_settings(ctx, arg):
+    config_to_use = find_config(all_configs, arg)
+    if (config_to_use is None):
+        await ctx.send("No config with given name found!")
+        return
+    config_settings = config_to_use.get_parameters()
+    await(ctx.send(config_settings))
+
+
 # Use with a discord key -- key is hidden in a different file
 with open ("key.txt", "r", encoding= "utf-8") as f:
     key = f.readline()
 bot.run(key)
-# a
