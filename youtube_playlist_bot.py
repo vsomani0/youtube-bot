@@ -83,10 +83,10 @@ title contains: {str(self.title_contains)}, is_favorite: {str(self.is_favorite)}
     
 class Playlist_Data:
     ''' Stores data for playlist necessary for playlist. Not playlist class because it is self-made'''
-    def __init__(self, title: str):
+    def __init__(self, title: str, id: str):
         self.title = title.casefold()
+        self.id = id
         self.videos = []
-        print("Empty playlist successfully initialize!")
 
     def add_video(self, video: Video_Data):
         self.videos.append(video)
@@ -235,11 +235,19 @@ def add_video_details_from_file(all_vids, line_to_read):
 def store_playlist_helper(all_playlists, playlist_link, title = None) -> bool:
     '''Stores playlist in list, dictionary, and file, where it can be re-extracted'''
     curr_playlist = Playlist(playlist_link)
+    if (curr_playlist is None):
+        return False
     # If no extra title is given, title automatically takes the title of the playlist
     if (title is None):
         title = curr_playlist.title
+    for prev_playlist in all_playlists:
+        if prev_playlist.title.casefold() == title.casefold():
+            # No unique id for title. Cannot store
+            return False
+        if prev_playlist.id == curr_playlist.playlist_id:
+            return False
     # Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
-    curr_playlist_data = Playlist_Data(title)
+    curr_playlist_data = Playlist_Data(title, curr_playlist.playlist_id)
     curr_playlist_data.add_details_from_playlist(curr_playlist)
     # Get all playlist data and append it to the list
     all_playlists.append(curr_playlist_data)
@@ -335,9 +343,9 @@ async def save_playlist(ctx, *args):
             await ctx.send("An error occured while trying to save the playlist")
             return
     if (store_playlist_helper(all_playlists, args[0], title = args[1])) == True:
-        ctx.send(f"Playlists saved successfully with title {args[1]}")
+        await ctx.send(f"Playlists saved successfully with title {args[1]}")
     else:
-        ctx.send("An error occured while trying to save the playlist")
+        await ctx.send("An error occured while trying to save the playlist")
 
 @bot.command()
 async def random_video_with_category(ctx, *args):
@@ -378,7 +386,6 @@ async def random_video_with_category(ctx, *args):
         if (error_message != "no error"):
             await ctx.send(f"Error in categories with playlist: {error_message}")
             return
-        # Removes all previous categories set
         last_config.set_null()
         # Sets new categories, adds it to last_config
         last_config.get_args_from_string_list(args[1:])
@@ -389,20 +396,23 @@ async def random_video_with_category(ctx, *args):
             await ctx.send(f"{video_chosen.url} -- {video_chosen.title} by {video_chosen.author}")
 
 @bot.command()
-async def help(ctx):
-    await ctx.send("FIXME!")
-
-@bot.command()
 async def list(ctx):
     await ctx.send("FIXME!")
 
 @bot.command()
 async def add_config(ctx, *args):
+    curr_config_title = args[0].casefold()
+    if curr_config_title == "last":
+        await ctx.send("\"last\" is not a valid config name. Use a different name!")
+    for prev_config in all_configs:
+        if prev_config.title == curr_config_title:
+            await ctx.send(f"\"{curr_config_title}\" is already in a previous config's title. Use a new name next time!")
+            return
     error_message = check_valid_categories(args[1:])
     if (error_message != "no error"):
         await ctx.send(f"Error creating config: {error_message}")
         return
-    curr_config = Config(args[0])
+    curr_config = Config(curr_config_title)
     curr_config.get_args_from_string_list(args[1:])
     all_configs.append(curr_config)
     await ctx.send(f"Successfully creating config named {curr_config.title.casefold()}")
