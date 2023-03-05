@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from pytube import YouTube, Playlist
+from pytube import YouTube, Playlist 
 import pytube.exceptions
 import random
 
@@ -89,15 +89,19 @@ class Playlist_Data:
         '''Extracts all videos from each video in playlist, and adds into videos list .'''
         print(f'Downloading all video data from playlist \"{self.title}\". Please wait a few moments.')
         for video in playlist:
-            try:
-                # Get the video details from its link using the Pytube library
-                curr_vid = YouTube(video)
-            except pytube.exceptions.VideoUnavailable:
-            # Exception doesn't work, pytube library appears faulty
-                print("Skipping video, because it is unaivalable.")
-            else:
+            # try:
+            #     # Get the video details from its link using the Pytube library
+            #     curr_vid = YouTube(video)
+            # except pytube.exceptions.VideoUnavailable:
+            # # Exception doesn't work, pytube library appears faulty
+            #     print("Skipping video, because it is unavailable.")
+            # else:
                 # Adds the video itself to the playlist
-                self.videos.append(Video_Data(curr_vid))
+            curr_vid = YouTube(video) # todo
+            if ((curr_vid is None) or (curr_vid.length is None)):
+                continue
+            print(curr_vid, curr_vid.length/60)   
+            self.videos.append(Video_Data(curr_vid))
 
     def rand_vid(self) -> Video_Data:
         '''Returns a random video's settings from a playlist'''
