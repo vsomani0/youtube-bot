@@ -27,7 +27,7 @@ class Video_Data:
         self.title = curr_vid.title
 
 class Config:
-    '''Class that stores a configuration of settings for videos. Can be called at any time.'''
+    '''Stores a configuration of settings for videos. Can be called at any time.'''
     def __init__(self, title, min_length = None, max_length = None, min_views = None, max_views = None, author = None, title_contains = None, is_favorite = None):
         self.title = title.casefold()
         self.min_length = min_length
@@ -37,6 +37,7 @@ class Config:
         self.author = author
         self.title_contains = title_contains
         self.is_favorite = is_favorite
+        print("New config class created!")
     
     def set_null(self):
         self.title = None
@@ -48,7 +49,11 @@ class Config:
         self.title_contains = None
         self.is_favorite = None
 
+    def __str__(self):
+        return (f"{self.title}, {self.min_length}, {self.max_length}, {self.min_views}, {self.max_views}, {self.author}, {self.title_contains}, {self.is_favorite}")
+    
     def get_args_from_string_list(self, args: list):
+        '''Converts list to config class'''
         if (args[0].casefold() != "none"):
             self.min_length = int(args[0])
         if (args[1].casefold() != "none"):
@@ -64,9 +69,10 @@ class Config:
         if (args[6].casefold() != "none"):
             if (args[6].casefold() == "true"):
                 self.is_favorite = True
-            # If is_favorite isn't none or true, and it is a valid parameter, it must be false.
             else:
                 self.is_favorite = False
+        print("New config settings chosen")
+        print(self)
     def get_parameters(self) -> str:
         '''Returns a string that prints out all the parameters/Categories in the function.'''
         # Using str function to concatenate multiple types like int and none
@@ -76,6 +82,7 @@ title contains: {str(self.title_contains)}, is_favorite: {str(self.is_favorite)}
         return config_settings
     
 class Playlist_Data:
+    ''' Stores data for playlist necessary for playlist. Not playlist class because it is self-made'''
     def __init__(self, title: str):
         self.title = title.casefold()
         self.videos = []
@@ -270,10 +277,10 @@ def check_valid_categories(args: list) -> str:
     bot can asynchronously send, or returns no error to indicate no error.'''
     error_message = ""
     if (len(args) < 7):
-        error_message = "Too few arguments. Need 7(min_length, max_length, min_views, max_views, author, title_contains, isFavorite)"
+        error_message = "Too few categories selected. Need 7(min_length, max_length, min_views, max_views, author, title_contains, isFavorite)"
         return error_message
     if (len(args) > 7):
-        error_message = "Too many arguments. Need 7(min_length, max_length, min_views, max_views, author, title_contains, isFavorite)"
+        error_message = "Too many categories selected. Need 7(min_length, max_length, min_views, max_views, author, title_contains, isFavorite)"
         return error_message
     if (args[0].casefold() != "none"):
         if not (args[0].isdigit()):
@@ -339,6 +346,7 @@ async def random_video_with_category(ctx, *args):
         await ctx.send("Please provide a playlist name")
         return
     if (len(args) != 2) & (len(args) != 8):
+        # Not config type, and doesn't have all categories listed out
         await ctx.send("Invalid number of arguments. Need either 2 or 8 arguments AFTER initial random_video_with_category call")
         await ctx.send("If config is set, syntax: $random_video_with_category \"Playlist Name\" \"Config Name\" ")
         await ctx.send("If not, syntax: $random_video_with_category \"Playlist Name\" min_length max_length min_views max_views author_name title_contains is_favorite")
@@ -365,10 +373,14 @@ async def random_video_with_category(ctx, *args):
         else:
             await ctx.send(f"{video_chosen.url} -- {video_chosen.title} by {video_chosen.author}")
     if (len(args) == 8):
+        # All categories listed out
         error_message = check_valid_categories(args[1:])
         if (error_message != "no error"):
             await ctx.send(f"Error in categories with playlist: {error_message}")
             return
+        # Removes all previous categories set
+        last_config.set_null()
+        # Sets new categories, adds it to last_config
         last_config.get_args_from_string_list(args[1:])
         video_chosen = (playlist_to_use.rand_vid_category(config = last_config))
         if video_chosen is None:
@@ -376,9 +388,9 @@ async def random_video_with_category(ctx, *args):
         else:
             await ctx.send(f"{video_chosen.url} -- {video_chosen.title} by {video_chosen.author}")
 
-# @bot.command()
-# async def help(ctx):
-#     await ctx.send("FIXME!")
+@bot.command()
+async def help(ctx):
+    await ctx.send("FIXME!")
 
 @bot.command()
 async def list(ctx):
