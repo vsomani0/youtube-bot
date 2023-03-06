@@ -176,6 +176,7 @@ class Playlist_Data:
 
     def make_video_favorite_with_url(self, video_url):
         # Go through a list of video objects
+        
         for video in self.videos:
             if (video_url == video.url):
                 video.is_favorite = True
@@ -274,23 +275,26 @@ def read_video_details_from_file(curr_playlist_data: Playlist_Data, line_to_read
     curr_playlist_data.add_video(curr_vid)
 
 
-def store_playlist_helper(playlist_link, title=None) -> bool:
+def store_playlist_helper(playlist_link, title=None) -> str:
     '''Stores playlist in list, dictionary, and file, where it can be re-extracted'''
     try:
         curr_playlist = Playlist(playlist_link)
         if (curr_playlist.title is None):
-            return False
+            # Exception keyerror comes here, trying to extract details
+            return "Failed to store playlist data!"
     except KeyError:
-        return False
+        return "Playlist data not found! Make sure your playlist is public, and is a valid link!"
     # If no extra title is given, title automatically takes the title of the playlist
     if (title is None):
+        # Title for playlist_data object. If not set, default to title of playlist itself.
         title = curr_playlist.title
     for prev_playlist in all_playlists:
+        if prev_playlist.id == curr_playlist.playlist_id:
+            return "You have already stored this playlist!"
         if prev_playlist.title.casefold() == title.casefold():
             # No unique id for title. Cannot store
-            return False
-        if prev_playlist.id == curr_playlist.playlist_id:
-            return False
+            return "There is a playlist with the same title as the current one. Use a different title!"
+        
     # Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
     curr_playlist_data = Playlist_Data(title, curr_playlist.playlist_id)
     curr_playlist_data.add_details_from_playlist(curr_playlist)
@@ -301,7 +305,7 @@ def store_playlist_helper(playlist_link, title=None) -> bool:
 
 
 def find_playlist(playlist_name: str):
-    '''Finds and returns playlist with name, -1 if no playlist with matching title'''
+    '''Finds and returns playlist with name, None if no playlist with matching title'''
     casefold_playlist_name = playlist_name.casefold()
     for curr_playlist in all_playlists:
         if (curr_playlist.title == casefold_playlist_name):
@@ -380,19 +384,23 @@ async def save_playlist(ctx, *args):
         return
     if (len(args) == 1):
         await ctx.send("Attempting to store the playlist. This may take a few moments.")
-        if (store_playlist_helper(playlist_link=args[0])) == True:
+        # Stores playlist and checks for error
+        error_message = store_playlist_helper(playlist_link=args[0])
+        if (error_message == "no error"):
             playlist_title = all_playlists[len(all_playlists)-1].title
             playlist_num_vids = len(all_playlists[len(all_playlists)-1].videos)
-            await ctx.send(f"Playlist {playlist_title} with {playlist_num_vids} videos saved successfully!")
+            await ctx.send(f"Playlist {playlist_title} saved successfully with {playlist_num_vids} videos!")
             return
         else:
             await ctx.send("An error occured while trying to save the playlist")
+            await ctx.send(error_message)
             return
-    if (store_playlist_helper(args[0], title=args[1])) == True:
+    error_message = store_playlist_helper(args[0], title = args[1])
+    if (error_message == "no error"):
         await ctx.send(f"Playlists saved successfully with title {args[1]}")
     else:
         await ctx.send("An error occured while trying to save the playlist")
-
+        await ctx.send(error_message)
 
 @bot.command()
 async def random_video_with_category(ctx, *args):
@@ -444,6 +452,20 @@ async def random_video_with_category(ctx, *args):
 async def list(ctx):
     await ctx.send("FIXME!")
 
+@bot.command()
+async def make_favorite(ctx, *args):
+    playlist_name = args[1]
+    video_name = args[0]
+
+    playlist_to_use = find_playlist(playlist_name)
+    if (playlist_to_use is None):
+        await ctx.send("Playlist not found. Double check your spelling!")
+        return
+    if(playlist_to_use.make_video_favorite_with_title(video_name) is False):
+        await ctx.send(f"Failed to find video in playlist titled {playlist_to_use.title}. Make sure you spelled it's name correctly!")
+        return
+    await ctx.send(f"{video_name} is now a favorite in playlist {playlist_to_use.title}!")
+    
 
 @bot.command()
 async def add_config(ctx, *args):
