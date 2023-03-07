@@ -164,26 +164,22 @@ class Playlist_Data:
             # If video meets all criteria, it's added to the appropriate list
         return shortened_playlist.rand_vid()
 
-    def make_video_favorite_with_title(self, videoTitle) -> bool:
+    def make_video_favorite(self, curr_vid_title) -> bool:
         # Go through a list of video objects
-        for video in self.videos:
-            if (videoTitle.casefold() == video.title.casefold()):
-                video.is_favorite = True
+        for prev_vid in self.videos:
+            if (curr_vid_title.casefold() == prev_vid.title):
+                prev_vid.is_favorite = True
                 return True
-        # If it goes through the entire for loop, print error to console and return bool
-        print(f"{videoTitle} not found in playlist {self.title}.")
+        print(f"{curr_vid_title} not found in playlist {self.title}.")
         return False
 
-    def make_video_favorite_with_url(self, video_url):
+    def remove_video_favorite(self, curr_vid_title):
         # Go through a list of video objects
-        
-        for video in self.videos:
-            if (video_url == video.url):
-                video.is_favorite = True
+        for prev_vid in self.videos:
+            if (curr_vid_title.casefold() == prev_vid.title):
+                prev_vid.is_favorite = False
                 return True
-        # If it goes through the entire for loop, print error to console and return bool
-        print(
-            f"{video_url} not found in playlist {self.title}, did you link it correctly?")
+        print(f"{curr_vid_title} not found in playlist {self.title}, did you link it correctly?")
         return False
 
 # def get_video_details(vid_details: list) -> str:
@@ -301,7 +297,7 @@ def store_playlist_helper(playlist_link, title=None) -> str:
     # Get all playlist data and append it to the list
     all_playlists.append(curr_playlist_data)
     write_playlist_data(curr_playlist_data)
-    return True
+    return "no error"
 
 
 def find_playlist(playlist_name: str):
@@ -450,31 +446,45 @@ async def random_video_with_category(ctx, *args):
 
 @bot.command()
 async def list(ctx):
-    await ctx.send("FIXME!")
+    await ctx.send("Link to commands: FIXME") #todo
 
 @bot.command()
-async def make_favorite(ctx, *args):
-    playlist_name = args[1]
-    video_name = args[0]
+async def add_favorite(ctx, *args):
+    playlist_name = args[0]
+    video_name = args[1]
 
     playlist_to_use = find_playlist(playlist_name)
     if (playlist_to_use is None):
         await ctx.send("Playlist not found. Double check your spelling!")
         return
-    if(playlist_to_use.make_video_favorite_with_title(video_name) is False):
+    if(playlist_to_use.make_video_favorite(video_name) is False):
         await ctx.send(f"Failed to find video in playlist titled {playlist_to_use.title}. Make sure you spelled it's name correctly!")
         return
     await ctx.send(f"{video_name} is now a favorite in playlist {playlist_to_use.title}!")
-    
+
+@bot.command()
+async def remove_favorite(ctx, *args):
+    playlist_name = args[0]
+    video_name = args[1]
+
+    playlist_to_use = find_playlist(playlist_name)
+    if (playlist_to_use is None):
+        await ctx.send("Playlist not found. Double check your spelling!")
+        return
+    if(playlist_to_use.remove_video_favorite(video_name) is False):
+        await ctx.send(f"Failed to find video in playlist titled {playlist_to_use.title}. Make sure you spelled it's name correctly!")
+        return
+    await ctx.send(f"{video_name} is now a favorite in playlist {playlist_to_use.title}!")
 
 @bot.command()
 async def add_config(ctx, *args):
+    ''' Creates new config '''
     curr_config_title = args[0].casefold()
     if curr_config_title == "last":
         await ctx.send("\"last\" is not a valid config name. Use a different name!")
     for prev_config in all_configs:
         if prev_config.title == curr_config_title:
-            await ctx.send(f"\"{curr_config_title}\" is already in a previous config's title. Use a new name next time!")
+            await ctx.send(f"\"{curr_config_title}\" is already in a previous config's title. Use a new name!")
             return
     error_message = check_valid_categories(args[1:])
     if (error_message != "no error"):
