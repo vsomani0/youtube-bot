@@ -179,39 +179,36 @@ class Playlist_Data:
             if (curr_vid_title.casefold() == prev_vid.title):
                 prev_vid.is_favorite = False
                 return True
-        print(f"{curr_vid_title} not found in playlist {self.title}, did you link it correctly?")
+        print(
+            f"{curr_vid_title} not found in playlist {self.title}, did you link it correctly?")
         return False
 
-# def get_video_details(vid_details: list) -> str:
-#     '''Stores all details from a video into comma-separated format as a helper function'''
-#     stringVal = ""
-#     for i in range(len(vid_details)-1):
-#         stringVal += f"{vid_details[i]}, "
-#     stringVal += f"{vid_details[i+1]}\n"
-#     # Stores video details. Stores title of video last so video title doesn't interrupt CSV
-#     # CSV still interrupted if a YouTube author has a comma in their username, but extremely uncommon.
-#     return (stringVal)
+
 all_playlists = []
 all_configs = []
 last_config = Config("last")  # Stores last settings if no config is created
 all_configs.append(last_config)
 
+
 def write_playlist_data(curr_playlist_data: Playlist_Data) -> None:
     '''Write data specifically for a playlist to a file'''
     # Allows for specific user-inputted title or the default title
     with open("user_data.txt", "a", encoding="utf-8") as f:
-        f.write(f"Playlist: {curr_playlist_data.title}\t{curr_playlist_data.id}\n")
+        f.write(
+            f"Playlist: {curr_playlist_data.title}\t{curr_playlist_data.id}\n")
         for video in curr_playlist_data.videos:
             f.write(video.categories_csv())
             f.write("\n")
         f.write("\n")
     print("Playlist Data stored to file!")
 
+
 def write_config_data(curr_config: Config):
-    with open("user_data.txt", "a", encoding = "utf-8") as f:
+    with open("user_data.txt", "a", encoding="utf-8") as f:
         f.write(curr_config.categories_csv())
-        f.write ("\n")
+        f.write("\n")
     print("Config data stored to file!")
+
 
 def read_all_details_from_file():
     with open("user_data.txt", "r", encoding="utf-8") as f:
@@ -224,8 +221,9 @@ def read_all_details_from_file():
             if (config_or_playlist == "Config:"):
                 read_config_details_from_file(split_curr_line[1])
                 continue
-            elif(config_or_playlist != "Playlist:"):
-                raise RuntimeError(f"Reading from file at {split_curr_line} is neither config nor playlist!")
+            elif (config_or_playlist != "Playlist:"):
+                raise RuntimeError(
+                    f"Reading from file at {split_curr_line} is neither config nor playlist!")
             playlist_details = split_curr_line[1].split('\t', 1)
             playlist_title = playlist_details[0]
             playlist_id = playlist_details[1]
@@ -238,20 +236,25 @@ def read_all_details_from_file():
                     break  # Return to previous loop
                 if curr_line == '':
                     return
-                print(f"Attempting to add video to playlist {curr_playlist_data.title}") # todo
+                # todo
+                print(
+                    f"Attempting to add video to playlist {curr_playlist_data.title}")
                 read_video_details_from_file(curr_playlist_data, curr_line)
 
-                    # If there's an extra newline, file end will get caught in other loop
+                # If there's an extra newline, file end will get caught in other loop
 
-                    # Reads current line as a CSV, appending it to playlist
+                # Reads current line as a CSV, appending it to playlist
+
 
 def read_config_details_from_file(line_to_read):
-    split_line = line_to_read.split(', ') #todo
+    split_line = line_to_read.split(', ')  # todo
     if (len(split_line) != 8):
-        raise RuntimeError(f"{split_line} has {len(split_line)} elements -- not 8!") 
+        raise RuntimeError(
+            f"{split_line} has {len(split_line)} elements -- not 8!")
     curr_config = Config(split_line[0])
     curr_config.get_args_from_string_list(split_line[1:])
     all_configs.append(curr_config)
+
 
 def read_video_details_from_file(curr_playlist_data: Playlist_Data, line_to_read):
     '''Reads current line as a CSV, and appends it's video details to playlist. Helper function for reading file'''
@@ -290,7 +293,7 @@ def store_playlist_helper(playlist_link, title=None) -> str:
         if prev_playlist.title.casefold() == title.casefold():
             # No unique id for title. Cannot store
             return "There is a playlist with the same title as the current one. Use a different title!"
-        
+
     # Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
     curr_playlist_data = Playlist_Data(title, curr_playlist.playlist_id)
     curr_playlist_data.add_details_from_playlist(curr_playlist)
@@ -317,9 +320,10 @@ def find_config(config_name: str):
             return curr_config
     return None
 
+
 read_all_details_from_file()
 for playlist_data in all_playlists:
-    print(f"{playlist_data.title} has {len(playlist_data.videos)} videos!") #todo
+    print(f"{playlist_data.title} has {len(playlist_data.videos)} videos!")  # todo
 bot = commands.Bot(command_prefix='$', intents=intents)
 
 
@@ -391,12 +395,13 @@ async def save_playlist(ctx, *args):
             await ctx.send("An error occured while trying to save the playlist")
             await ctx.send(error_message)
             return
-    error_message = store_playlist_helper(args[0], title = args[1])
+    error_message = store_playlist_helper(args[0], title=args[1])
     if (error_message == "no error"):
         await ctx.send(f"Playlists saved successfully with title {args[1]}")
     else:
         await ctx.send("An error occured while trying to save the playlist")
         await ctx.send(error_message)
+
 
 @bot.command()
 async def random_video_with_category(ctx, *args):
@@ -446,7 +451,7 @@ async def random_video_with_category(ctx, *args):
 
 @bot.command()
 async def list(ctx):
-    await ctx.send("Link to commands: FIXME") #todo
+    await ctx.send("Link to commands: https://docs.google.com/document/d/1lWFo4FM3kI9snYTbAWLvjgvuUP1IkLcbzcUSId_IdZ4/edit")
 
 @bot.command()
 async def add_favorite(ctx, *args):
@@ -457,10 +462,11 @@ async def add_favorite(ctx, *args):
     if (playlist_to_use is None):
         await ctx.send("Playlist not found. Double check your spelling!")
         return
-    if(playlist_to_use.make_video_favorite(video_name) is False):
+    if (playlist_to_use.make_video_favorite(video_name) is False):
         await ctx.send(f"Failed to find video in playlist titled {playlist_to_use.title}. Make sure you spelled it's name correctly!")
         return
     await ctx.send(f"{video_name} is now a favorite in playlist {playlist_to_use.title}!")
+
 
 @bot.command()
 async def remove_favorite(ctx, *args):
@@ -471,10 +477,11 @@ async def remove_favorite(ctx, *args):
     if (playlist_to_use is None):
         await ctx.send("Playlist not found. Double check your spelling!")
         return
-    if(playlist_to_use.remove_video_favorite(video_name) is False):
+    if (playlist_to_use.remove_video_favorite(video_name) is False):
         await ctx.send(f"Failed to find video in playlist titled {playlist_to_use.title}. Make sure you spelled it's name correctly!")
         return
-    await ctx.send(f"{video_name} is now a favorite in playlist {playlist_to_use.title}!")
+    await ctx.send(f"{video_name} is no longer a favorite in playlist {playlist_to_use.title}!")
+
 
 @bot.command()
 async def add_config(ctx, *args):
@@ -497,7 +504,6 @@ async def add_config(ctx, *args):
     await ctx.send(f"Successfully creating config named {curr_config.title.casefold()}")
     await ctx.send(f"Parameters: {curr_config.get_parameters()}")
 
-
 @bot.command()
 async def get_config_settings(ctx, arg):
     config_to_use = find_config(arg)
@@ -506,7 +512,6 @@ async def get_config_settings(ctx, arg):
         return
     config_settings = config_to_use.get_parameters()
     await(ctx.send(config_settings))
-
 
 # Use with a discord key -- key is hidden in a different file
 with open("key.txt", "r", encoding="utf-8") as f:
