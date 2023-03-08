@@ -392,15 +392,13 @@ async def save_playlist(ctx, *args):
             await ctx.send(f"Playlist {playlist_title} saved successfully with {playlist_num_vids} videos!")
             return
         else:
-            await ctx.send("An error occured while trying to save the playlist")
-            await ctx.send(error_message)
+            await ctx.send(f"An error occured while trying to save the playlist: {error_message}")
             return
     error_message = store_playlist_helper(args[0], title=args[1])
     if (error_message == "no error"):
         await ctx.send(f"Playlists saved successfully with title {args[1]}")
     else:
-        await ctx.send("An error occured while trying to save the playlist")
-        await ctx.send(error_message)
+        await ctx.send(f"An error occured while trying to save the playlist : {error_message}")
 
 
 @bot.command()
