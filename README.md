@@ -7,11 +7,11 @@ The discord bot provides convenient tool for syncing playing a video via discord
     - Saves a playlist. Takes a few seconds and is stored by bot which can be reused even when the bot goes offline.
 - ___$random_video___ <playlist_title>
     - Gets a random video from the playlist (no criteria)
-- ___$random_video_with_category___ <playlist_ttle> <min_length> <max_length> <min_views> <max_views> <author_name> <title_contains>, <is_favorite> 
+- ___$random_video_with_filter___ <playlist_ttle> <min_length> <max_length> <min_views> <max_views> <author_name> <title_contains>, <is_favorite> 
     - Type "none" for any categories to not use them. You can retrieve the last category list by using the config name "last".
-- ___$add_config___ <config_title> <min_length> <max_length> <min_views> <max_views> <author_name> <title_contains> <is_favorite>
+- ___$add_preset___ <config_title> <min_length> <max_length> <min_views> <max_views> <author_name> <title_contains> <is_favorite>
     - Creates a new configuration for the lengths and similar features which are subsequently defaulted. 
-- ___$random_video_with_category___ <playlist_title> <config_title>
+- ___$random_video_with_filter___ <playlist_title> <config_title>
     - Gets a random video with the chosen playlist and the categories from chosen config. Use "last" keyword if config not explicitly built, but to reuse last categories.
 - ___$list___
     - Help text that describes commands (this message)

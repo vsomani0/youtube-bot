@@ -460,7 +460,7 @@ async def random_video_with_filter(ctx, *args):
 
 @bot.command()
 async def list(ctx):
-    await ctx.send("Link to commands: https://docs.google.com/document/d/1lWFo4FM3kI9snYTbAWLvjgvuUP1IkLcbzcUSId_IdZ4/edit")
+    await ctx.send("Link to commands: https://github.com/vsomani0/youtube-bot/blob/master/README.md")
 
 @bot.command()
 async def add_favorite(ctx, *args):
