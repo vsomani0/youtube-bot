@@ -30,8 +30,8 @@ class Video_Data:
         return (f"{self.url}, {self.is_favorite}, {self.length}, {self.views}, {self.author}, {self.title}")
 
 
-class Config:
-    '''Stores a configuration of settings for videos. Can be called at any time.'''
+class Preset:
+    '''Stores a preset of settings for videos. Can be called at any time.'''
 
     def __init__(self, title, min_length=None, max_length=None, min_views=None, max_views=None, author=None, title_contains=None, is_favorite=None):
         self.title = title.casefold()
@@ -42,10 +42,8 @@ class Config:
         self.author = author
         self.title_contains = title_contains
         self.is_favorite = is_favorite
-        print("New config class created!")
 
     def set_null(self):
-        self.title = None
         self.min_length = None
         self.max_length = None
         self.min_views = None
@@ -58,10 +56,10 @@ class Config:
         return (f"{self.title}, {self.min_length}, {self.max_length}, {self.min_views}, {self.max_views}, {self.author}, {self.title_contains}, {self.is_favorite}")
 
     def categories_csv(self):
-        return (f"Config: {self.title}, {self.min_length}, {self.max_length}, {self.min_views}, {self.max_views}, {self.author}, {self.title_contains}, {self.is_favorite}")
+        return (f"Preset: {self.title}, {self.min_length}, {self.max_length}, {self.min_views}, {self.max_views}, {self.author}, {self.title_contains}, {self.is_favorite}")
 
     def get_args_from_string_list(self, args: list):
-        '''Converts list to config class'''
+        '''Converts list to preset class'''
         if (args[0].casefold() != "none"):
             self.min_length = int(args[0])
         if (args[1].casefold() != "none"):
@@ -79,16 +77,16 @@ class Config:
                 self.is_favorite = True
             else:
                 self.is_favorite = False
-        print("New config settings chosen")
+        print("New preset settings chosen")
         print(self)
 
     def get_parameters(self) -> str:
         '''Returns a string that prints out all the parameters/Categories in the function.'''
         # Using str function to concatenate multiple types like int and none
-        config_settings = (f"""min length(minutes): {str(self.min_length)}, max length(minutes): \
+        preset_settings = (f"""min length(minutes): {str(self.min_length)}, max length(minutes): \
 {str(self.max_length)}, min_views: {str(self.min_views)}, max_views: self.max_views, author: {str(self.author)},\
 title contains: {str(self.title_contains)}, is_favorite: {str(self.is_favorite)}""")
-        return config_settings
+        return preset_settings
 
 
 class Playlist_Data:
@@ -112,9 +110,24 @@ class Playlist_Data:
                 if ((curr_vid is None) or (curr_vid.length is None)):
                     continue
                 self.videos.append(Video_Data(curr_vid))
-            except TypeError:
+            except TypeError: # Random error in PyTube library where video doesn't store properly
                 print(f"Type error occurred! {curr_vid}")
+                self.add_video_without_exception(video)
                 continue
+    def add_video_without_exception(self, video: YouTube):
+        ''' Tries to add a video that had a random TypeError(likely because of library's fault) 10 additional times.'''
+        # Odds of random error occuring 10 times by raw chance: less than 1/10^10
+        for i in range(10):
+            print(f"Attempting to add video without exception try: {i+1}")
+            try:
+                curr_vid = YouTube(video)
+                self.videos.append(Video_Data(curr_vid))
+                return
+            except TypeError:
+                i += 1
+        print("Video failed to store after 10 additional tries! Faulty.")
+            
+
 
     def rand_vid(self) -> Video_Data:
         '''Returns a random video's settings from a playlist'''
@@ -124,18 +137,19 @@ class Playlist_Data:
         random_video_index = random.randint(0, len(self.videos)-1)
         return self.videos[random_video_index]
 
-    def rand_vid_category(self, min_length=None, max_length=None, min_views=None, max_views=None, author=None, title_contains=None, is_favorite=None, config: Config = None) -> Video_Data:
-        '''Takes a playlist and some chosen categories, and gives a video from that category. Deletes all videos from
-        different categories in a temporary list, and then takes a random video out of the temporary list.'''
-        if (config != None):
-            min_length = config.min_length
-            max_length = config.max_length
-            min_views = config.min_views
-            max_views = config.max_views
-            author = config.author
-            title_contains = config.title_contains
-            is_favorite = config.is_favorite
-        # Playlist Object, but with categories removed
+    def rand_vid_filter(self, min_length=None, max_length=None, min_views=None, max_views=None, author=None, title_contains=None, is_favorite=None, preset: Preset = None) -> Video_Data:
+        '''Takes a playlist and some chosen filters, and gives a video from that category. Deletes all videos from
+        different filter in a temporary list, and then takes a random video out of the temporary list.'''
+        # Transport settings from filter
+        if (preset != None):
+            min_length = preset.min_length
+            max_length = preset.max_length
+            min_views = preset.min_views
+            max_views = preset.max_views
+            author = preset.author
+            title_contains = preset.title_contains
+            is_favorite = preset.is_favorite
+        # Filtered playlist object
         shortened_playlist = Playlist_Data(self.title, self.id)
         for vid_details in self.videos:
             if (is_favorite != None):
@@ -185,10 +199,9 @@ class Playlist_Data:
 
 
 all_playlists = []
-all_configs = []
-last_config = Config("last")  # Stores last settings if no config is created
-all_configs.append(last_config)
-
+all_presets = []
+last_preset = Preset("last")  # Stores last settings if no preset is created
+all_presets.append(last_preset)
 
 def write_playlist_data(curr_playlist_data: Playlist_Data) -> None:
     '''Write data specifically for a playlist to a file'''
@@ -203,11 +216,11 @@ def write_playlist_data(curr_playlist_data: Playlist_Data) -> None:
     print("Playlist Data stored to file!")
 
 
-def write_config_data(curr_config: Config):
+def write_preset_data(curr_preset: Preset):
     with open("user_data.txt", "a", encoding="utf-8") as f:
-        f.write(curr_config.categories_csv())
+        f.write(curr_preset.categories_csv())
         f.write("\n")
-    print("Config data stored to file!")
+    print(" data stored to file!")
 
 
 def read_all_details_from_file():
@@ -217,13 +230,13 @@ def read_all_details_from_file():
             if curr_line == (''):
                 return
             split_curr_line = curr_line.split(" ", 1)
-            config_or_playlist = split_curr_line[0]
-            if (config_or_playlist == "Config:"):
-                read_config_details_from_file(split_curr_line[1])
+            preset_or_playlist = split_curr_line[0]
+            if (preset_or_playlist == "preset:"):
+                read_preset_details_from_file(split_curr_line[1])
                 continue
-            elif (config_or_playlist != "Playlist:"):
+            elif (preset_or_playlist != "Playlist:"):
                 raise RuntimeError(
-                    f"Reading from file at {split_curr_line} is neither config nor playlist!")
+                    f"Reading from file at {split_curr_line} is neither preset nor playlist!")
             playlist_details = split_curr_line[1].split('\t', 1)
             playlist_title = playlist_details[0]
             playlist_id = playlist_details[1]
@@ -246,14 +259,14 @@ def read_all_details_from_file():
                 # Reads current line as a CSV, appending it to playlist
 
 
-def read_config_details_from_file(line_to_read):
+def read_preset_details_from_file(line_to_read):
     split_line = line_to_read.split(', ')  # todo
     if (len(split_line) != 8):
         raise RuntimeError(
             f"{split_line} has {len(split_line)} elements -- not 8!")
-    curr_config = Config(split_line[0])
-    curr_config.get_args_from_string_list(split_line[1:])
-    all_configs.append(curr_config)
+    curr_preset = Preset(split_line[0])
+    curr_preset.get_args_from_string_list(split_line[1:])
+    all_presets.append(curr_preset)
 
 
 def read_video_details_from_file(curr_playlist_data: Playlist_Data, line_to_read):
@@ -293,8 +306,6 @@ def store_playlist_helper(playlist_link, title=None) -> str:
         if prev_playlist.title.casefold() == title.casefold():
             # No unique id for title. Cannot store
             return "There is a playlist with the same title as the current one. Use a different title!"
-
-    # Dictionary matches up playlist name with index in list, allowing user to call a playlist by its name.
     curr_playlist_data = Playlist_Data(title, curr_playlist.playlist_id)
     curr_playlist_data.add_details_from_playlist(curr_playlist)
     # Get all playlist data and append it to the list
@@ -312,18 +323,16 @@ def find_playlist(playlist_name: str):
     return None
 
 
-def find_config(config_name: str):
-    '''Finds and returns config with matching name'''
-    casefold_config_name = config_name.casefold()
-    for curr_config in all_configs:
-        if (curr_config.title == casefold_config_name):
-            return curr_config
+def find_preset(preset_name: str):
+    '''Finds and returns preset with matching name'''
+    casefold_preset_name = preset_name.casefold()
+    for curr_preset in all_presets:
+        if (curr_preset.title == casefold_preset_name):
+            return curr_preset
     return None
 
 
 read_all_details_from_file()
-for playlist_data in all_playlists:
-    print(f"{playlist_data.title} has {len(playlist_data.videos)} videos!")  # todo
 bot = commands.Bot(command_prefix='$', intents=intents)
 
 
@@ -384,7 +393,7 @@ async def save_playlist(ctx, *args):
         return
     if (len(args) == 1):
         await ctx.send("Attempting to store the playlist. This may take a few moments.")
-        # Stores playlist and checks for error
+        # Stores playlist and check for error
         error_message = store_playlist_helper(playlist_link=args[0])
         if (error_message == "no error"):
             playlist_title = all_playlists[len(all_playlists)-1].title
@@ -402,17 +411,18 @@ async def save_playlist(ctx, *args):
 
 
 @bot.command()
-async def random_video_with_category(ctx, *args):
+async def random_video_with_filter(ctx, *args):
+    print(find_preset("last") is None)
     video_chosen = []
     if (len(args) == 0):
         await ctx.send("Please provide a playlist name")
         return
     if (len(args) != 2) & (len(args) != 8):
-        # Not config type, and doesn't have all categories listed out
-        await ctx.send("Invalid number of arguments. Need either 2 or 8 arguments AFTER initial random_video_with_category call")
-        await ctx.send("If config is set, syntax: $random_video_with_category \"Playlist Name\" \"Config Name\" ")
-        await ctx.send("If not, syntax: $random_video_with_category \"Playlist Name\" min_length max_length min_views max_views author_name title_contains is_favorite")
-        await ctx.send("For every category intended to not be set, \"None\" indicates it is not set")
+        # Neither preset nor categories case
+        await ctx.send("Invalid number of arguments. Need either 2 or 8 arguments AFTER initial random_video_with_filter call")
+        await ctx.send("If preset is set, syntax: $random_video_with_filter \"Playlist Name\" \"Preset Name\" ")
+        await ctx.send("If not, syntax: $random_video_with_filter \"Playlist Name\" min_length max_length min_views max_views author_name title_contains is_favorite")
+        await ctx.send("For every filter intended to not be set, \"None\" indicates it is not set")
         return
     playlist_to_use = find_playlist(args[0])
     if (playlist_to_use is None):
@@ -420,27 +430,28 @@ async def random_video_with_category(ctx, *args):
         await ctx.send("If you did save the playlist, make sure to state its name correctly. Use quotations around multi-word names")
         return
     if (len(args) == 2):
-        config_to_use = find_config(args[1])
-        if (config_to_use is None):
-            await ctx.send(f"{args[1]} not found as a valid config.")
-            await ctx.send("Make sure to spell config name correctly. Use quotations around multi-word names")
+        # Preset case
+        preset_to_use = find_preset(args[1])
+        if (preset_to_use is None):
+            await ctx.send(f"{args[1]} not found as a valid preset.")
+            await ctx.send("Make sure to spell preset name correctly. Use quotations around multi-word names")
             return
-        video_chosen = playlist_to_use.rand_vid_category(config=config_to_use)
+        video_chosen = playlist_to_use.rand_vid_filter(preset=preset_to_use)
         print(video_chosen)
         if video_chosen is None:
             await ctx.send("No video found with selected criteria!")
         else:
             await ctx.send(f"{video_chosen.url} -- {video_chosen.title} by {video_chosen.author}")
     if (len(args) == 8):
-        # All categories listed out
+        # All categories case
         error_message = check_valid_categories(args[1:])
         if (error_message != "no error"):
-            await ctx.send(f"Error in categories with playlist: {error_message}")
+            await ctx.send(f"Error in filter with playlist: {error_message}")
             return
-        last_config.set_null()
-        # Sets new categories, adds it to last_config
-        last_config.get_args_from_string_list(args[1:])
-        video_chosen = (playlist_to_use.rand_vid_category(config=last_config))
+        last_preset.set_null()
+        # Sets new categories, adds it to last
+        last_preset.get_args_from_string_list(args[1:])
+        video_chosen = (playlist_to_use.rand_vid_filter(preset=last_preset))
         if video_chosen is None:
             await ctx.send("No video found with selected criteria!")
         else:
@@ -482,34 +493,34 @@ async def remove_favorite(ctx, *args):
 
 
 @bot.command()
-async def add_config(ctx, *args):
-    ''' Creates new config '''
-    curr_config_title = args[0].casefold()
-    if curr_config_title == "last":
-        await ctx.send("\"last\" is not a valid config name. Use a different name!")
-    for prev_config in all_configs:
-        if prev_config.title == curr_config_title:
-            await ctx.send(f"\"{curr_config_title}\" is already in a previous config's title. Use a new name!")
+async def add_preset(ctx, *args):
+    ''' Creates new preset '''
+    curr_preset_title = args[0].casefold()
+    if curr_preset_title == "last":
+        await ctx.send("\"last\" is not a valid preset name. Use a different name!")
+    for prev_preset in all_presets:
+        if prev_preset.title == curr_preset_title:
+            await ctx.send(f"\"{curr_preset_title}\" is already in a previous preset's title. Use a new name!")
             return
     error_message = check_valid_categories(args[1:])
     if (error_message != "no error"):
-        await ctx.send(f"Error creating config: {error_message}")
+        await ctx.send(f"Error creating preset: {error_message}")
         return
-    curr_config = Config(curr_config_title)
-    curr_config.get_args_from_string_list(args[1:])
-    all_configs.append(curr_config)
-    write_config_data(curr_config)
-    await ctx.send(f"Successfully creating config named {curr_config.title.casefold()}")
-    await ctx.send(f"Parameters: {curr_config.get_parameters()}")
+    curr_preset = Preset(curr_preset_title)
+    curr_preset.get_args_from_string_list(args[1:])
+    all_presets.append(curr_preset)
+    write_preset_data(curr_preset)
+    await ctx.send(f"Successfully creating preset named {curr_preset.title.casefold()}")
+    await ctx.send(f"Parameters: {curr_preset.get_parameters()}")
 
 @bot.command()
-async def get_config_settings(ctx, arg):
-    config_to_use = find_config(arg)
-    if (config_to_use is None):
-        await ctx.send("No config with given name found!")
+async def get_preset_settings(ctx, arg):
+    preset_to_use = find_preset(arg)
+    if (preset_to_use is None):
+        await ctx.send("No preset with given name found!")
         return
-    config_settings = config_to_use.get_parameters()
-    await(ctx.send(config_settings))
+    preset_settings = preset_to_use.get_parameters()
+    await(ctx.send(preset_settings))
 
 # Use with a discord key -- key is hidden in a different file
 with open("key.txt", "r", encoding="utf-8") as f:
