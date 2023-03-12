@@ -231,7 +231,7 @@ def read_all_details_from_file():
                 return
             split_curr_line = curr_line.split(" ", 1)
             preset_or_playlist = split_curr_line[0]
-            if (preset_or_playlist == "preset:"):
+            if (preset_or_playlist == "Preset:"):
                 read_preset_details_from_file(split_curr_line[1])
                 continue
             elif (preset_or_playlist != "Playlist:"):
