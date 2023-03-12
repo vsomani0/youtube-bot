@@ -2,6 +2,8 @@
 
 The discord bot provides convenient tool for syncing playing a video via discord bot. The different commands can be used for playing the video. 
 
+[**Video Tutorial**](https://www.youtube.com/watch?v=voYB8JojGAg)
+
 ## Bot commands 
 - ___$save_playlist___ <playlist_url> <playlist_name> (optional)
     - Saves a playlist. Takes a few seconds and is stored by bot which can be reused even when the bot goes offline.
@@ -23,4 +25,3 @@ The discord bot provides convenient tool for syncing playing a video via discord
     - Lists config settings with given title.
 
 
-[![Video Tutorial](https://img.youtube.com/vi/voYB8JojGAg/0.jpg)](https://www.youtube.com/watch?v=voYB8JojGAg)
