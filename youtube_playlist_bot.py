@@ -6,6 +6,11 @@ import random
 intents = discord.Intents.default()
 intents.message_content = True
 
+class User:
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+        self.all_user_playlists = []
+        self.all_user_presets = []
 
 class Video_Data:
     def __init__(self, curr_vid: YouTube = None):
@@ -101,7 +106,7 @@ class Playlist_Data:
         self.videos.append(video)
 
     def add_details_from_playlist(self, playlist: Playlist):
-        '''Extracts all videos from each video in playlist, and adds into videos list .'''
+        '''Extracts all important information from each video in playlist, and adds into videos list .'''
         print(
             f'Downloading all video data from playlist \"{self.title}\". Please wait a few moments.')
         for video in playlist:
@@ -127,7 +132,6 @@ class Playlist_Data:
                 i += 1
         print("Video failed to store after 10 additional tries! Faulty.")
             
-
 
     def rand_vid(self) -> Video_Data:
         '''Returns a random video's settings from a playlist'''
@@ -197,16 +201,30 @@ class Playlist_Data:
             f"{curr_vid_title} not found in playlist {self.title}, did you link it correctly?")
         return False
 
-
-all_playlists = []
-all_presets = []
+all_users = []
 last_preset = Preset("last")  # Stores last settings if no preset is created
 all_presets.append(last_preset)
 
-def write_playlist_data(curr_playlist_data: Playlist_Data) -> None:
-    '''Write data specifically for a playlist to a file'''
+def register_user(user_id: str) -> User:
+    '''Adds user to registered users'''
+    curr_user = User(user_id)
+    all_users.append(curr_user)
+    with open("user_data/registered_users.txt", "a", encoding="utf-8") as f:
+        f.write(f"{user_id}\n")
+    return curr_user
+
+def find_user(user_id: str) -> User:
+    '''Tries to find user in list of all registerd users'''
+    for curr_user in all_users:
+        if (curr_user.user_id == user_id):
+            return curr_user
+    return None
+
+def write_playlist_data(user: User) -> None:
+    '''Write data specifically for a playlist to the file named after given user'''
     # Allows for specific user-inputted title or the default title
-    with open("user_data.txt", "a", encoding="utf-8") as f:
+    curr_playlist_data = user.all_user_playlists
+    with open(f"user_data/{user.user_id}", "a", encoding="utf-8") as f: # Opens file titled by user tag
         f.write(
             f"Playlist: {curr_playlist_data.title}\t{curr_playlist_data.id}\n")
         for video in curr_playlist_data.videos:
@@ -217,14 +235,14 @@ def write_playlist_data(curr_playlist_data: Playlist_Data) -> None:
 
 
 def write_preset_data(curr_preset: Preset):
-    with open("user_data.txt", "a", encoding="utf-8") as f:
+    with open("user_data/user_data.txt", "a", encoding="utf-8") as f:
         f.write(curr_preset.categories_csv())
         f.write("\n")
     print(" data stored to file!")
 
 
-def read_all_details_from_file():
-    with open("user_data.txt", "r", encoding="utf-8") as f:
+def read_all_details_from_file(curr_user: User):
+    with open(f"user_data/{curr_user.user_id}.txt", "r", encoding="utf-8") as f:
         while True:
             curr_line = f.readline().strip()
             if curr_line == (''):
@@ -234,33 +252,27 @@ def read_all_details_from_file():
             if (preset_or_playlist == "Preset:"):
                 read_preset_details_from_file(split_curr_line[1])
                 continue
-            elif (preset_or_playlist != "Playlist:"):
+            elif (preset_or_playlist != "Playlist:"): # Problem reading -- could not identify if it was a preset or playlist
                 raise RuntimeError(
                     f"Reading from file at {split_curr_line} is neither preset nor playlist!")
+            # Playlist found
             playlist_details = split_curr_line[1].split('\t', 1)
             playlist_title = playlist_details[0]
             playlist_id = playlist_details[1]
             print(f"Extracting details of playlist titled: {playlist_title}")
             # currLine stores the title first if the file doesn't immediately end. Adds title to dictionary at right index.
-            curr_playlist_data = Playlist_Data(playlist_title, playlist_id)
-            all_playlists.append(curr_playlist_data)
+            curr_playlist_data = Playlist_Data(playlist_title, playlist_id) # Stores this playlist
+            curr_user.all_user_playlists.append(curr_playlist_data)
             for curr_line in f:
                 if curr_line == '\n':
-                    break  # Return to previous loop
+                    break  # Check next line for preset or playlist
                 if curr_line == '':
                     return
-                # todo
-                print(
-                    f"Attempting to add video to playlist {curr_playlist_data.title}")
-                read_video_details_from_file(curr_playlist_data, curr_line)
-
-                # If there's an extra newline, file end will get caught in other loop
-
                 # Reads current line as a CSV, appending it to playlist
 
 
 def read_preset_details_from_file(line_to_read):
-    split_line = line_to_read.split(', ')  # todo
+    split_line = line_to_read.split(', ') 
     if (len(split_line) != 8):
         raise RuntimeError(
             f"{split_line} has {len(split_line)} elements -- not 8!")
@@ -287,8 +299,8 @@ def read_video_details_from_file(curr_playlist_data: Playlist_Data, line_to_read
     curr_playlist_data.add_video(curr_vid)
 
 
-def store_playlist_helper(playlist_link, title=None) -> str:
-    '''Stores playlist in list, dictionary, and file, where it can be re-extracted'''
+def store_playlist_helper(curr_user: User, playlist_link, title=None) -> str:
+    '''Stores playlist in list and file, where it can be re-extracted'''
     try:
         curr_playlist = Playlist(playlist_link)
         if (curr_playlist.title is None):
@@ -300,7 +312,7 @@ def store_playlist_helper(playlist_link, title=None) -> str:
     if (title is None):
         # Title for playlist_data object. If not set, default to title of playlist itself.
         title = curr_playlist.title
-    for prev_playlist in all_playlists:
+    for prev_playlist in curr_user.all_playlists:
         if prev_playlist.id == curr_playlist.playlist_id:
             return "You have already stored this playlist!"
         if prev_playlist.title.casefold() == title.casefold():
@@ -309,15 +321,15 @@ def store_playlist_helper(playlist_link, title=None) -> str:
     curr_playlist_data = Playlist_Data(title, curr_playlist.playlist_id)
     curr_playlist_data.add_details_from_playlist(curr_playlist)
     # Get all playlist data and append it to the list
-    all_playlists.append(curr_playlist_data)
+    curr_user.all_user_playlists.append(curr_playlist_data)
     write_playlist_data(curr_playlist_data)
     return "no error"
 
 
-def find_playlist(playlist_name: str):
+def find_playlist(user: User, playlist_name: str):
     '''Finds and returns playlist with name, None if no playlist with matching title'''
     casefold_playlist_name = playlist_name.casefold()
-    for curr_playlist in all_playlists:
+    for curr_playlist in user.all_user_playlists:
         if (curr_playlist.title == casefold_playlist_name):
             return curr_playlist
     return None
@@ -331,8 +343,17 @@ def find_preset(preset_name: str):
             return curr_preset
     return None
 
+def read_all_users():
+    with open("user_data/registered_users.txt", "r", encoding = "utf-8") as f:
+        for curr_line in f:
+            if (curr_line == ""):
+                return
+            user_id = curr_line
+            curr_user = User(user_id)
+            all_users.append(curr_user)
+            read_all_details_from_file(curr_user)
 
-read_all_details_from_file()
+read_all_users()
 bot = commands.Bot(command_prefix='$', intents=intents)
 
 
@@ -393,21 +414,27 @@ async def save_playlist(ctx, *args):
         return
     if (len(args) == 1):
         await ctx.send("Attempting to store the playlist. This may take a few moments.")
+        # Get user id
+        user_id = f"{ctx.author.name}#{ctx.author.discriminator}"
+        curr_user = find_user(user_id)
+        if (curr_user is None): # User not found
+           curr_user = register_user(user_id)
         # Stores playlist and check for error
         error_message = store_playlist_helper(playlist_link=args[0])
         if (error_message == "no error"):
-            playlist_title = all_playlists[len(all_playlists)-1].title
-            playlist_num_vids = len(all_playlists[len(all_playlists)-1].videos)
+            playlist_title = curr_user.all_user_playlists[len(curr_user.all_user_playlists)-1].title
+            playlist_num_vids = len(curr_user.all_user_playlists[len(curr_user.all_user_playlists)-1].videos)
             await ctx.send(f"Playlist {playlist_title} saved successfully with {playlist_num_vids} videos!")
             return
         else:
             await ctx.send(f"An error occured while trying to save the playlist: {error_message}")
             return
-    error_message = store_playlist_helper(args[0], title=args[1])
-    if (error_message == "no error"):
-        await ctx.send(f"Playlists saved successfully with title {args[1]}")
     else:
-        await ctx.send(f"An error occured while trying to save the playlist : {error_message}")
+        error_message = store_playlist_helper(args[0], title=args[1])
+        if (error_message == "no error"):
+            await ctx.send(f"Playlists saved successfully with title {args[1]}")
+        else:
+            await ctx.send(f"An error occured while trying to save the playlist : {error_message}")
 
 
 @bot.command()
