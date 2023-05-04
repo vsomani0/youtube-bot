@@ -11,6 +11,8 @@ class User:
         self.user_id = user_id
         self.all_user_playlists = []
         self.all_user_presets = []
+        self.last_preset = Preset("last")  # Stores last settings if no preset is created
+        self.all_user_presets.append(self.last_preset)
 
 class Video_Data:
     def __init__(self, curr_vid: YouTube = None):
@@ -202,8 +204,6 @@ class Playlist_Data:
         return False
 
 all_users = []
-last_preset = Preset("last")  # Stores last settings if no preset is created
-all_presets.append(last_preset)
 
 def register_user(user_id: str) -> User:
     '''Adds user to registered users'''
@@ -242,7 +242,7 @@ def write_preset_data(curr_preset: Preset):
 
 
 def read_all_details_from_file(curr_user: User):
-    with open(f"user_data/{curr_user.user_id}.txt", "r", encoding="utf-8") as f:
+    with open(f"user_data/{curr_user.user_id}.txt", "x", encoding="utf-8") as f:
         while True:
             curr_line = f.readline().strip()
             if curr_line == (''):
@@ -250,7 +250,7 @@ def read_all_details_from_file(curr_user: User):
             split_curr_line = curr_line.split(" ", 1)
             preset_or_playlist = split_curr_line[0]
             if (preset_or_playlist == "Preset:"):
-                read_preset_details_from_file(split_curr_line[1])
+                read_preset_details_from_file(curr_user, split_curr_line[1]) # Adds preset's datails
                 continue
             elif (preset_or_playlist != "Playlist:"): # Problem reading -- could not identify if it was a preset or playlist
                 raise RuntimeError(
@@ -269,16 +269,17 @@ def read_all_details_from_file(curr_user: User):
                 if curr_line == '':
                     return
                 # Reads current line as a CSV, appending it to playlist
+                read_video_details_from_file(curr_playlist_data, curr_line)
 
 
-def read_preset_details_from_file(line_to_read):
+def read_preset_details_from_file(curr_user: User, line_to_read: str):
     split_line = line_to_read.split(', ') 
     if (len(split_line) != 8):
         raise RuntimeError(
             f"{split_line} has {len(split_line)} elements -- not 8!")
     curr_preset = Preset(split_line[0])
     curr_preset.get_args_from_string_list(split_line[1:])
-    all_presets.append(curr_preset)
+    curr_user.all_user_presets.append(curr_preset)
 
 
 def read_video_details_from_file(curr_playlist_data: Playlist_Data, line_to_read):
@@ -312,7 +313,7 @@ def store_playlist_helper(curr_user: User, playlist_link, title=None) -> str:
     if (title is None):
         # Title for playlist_data object. If not set, default to title of playlist itself.
         title = curr_playlist.title
-    for prev_playlist in curr_user.all_playlists:
+    for prev_playlist in curr_user.all_user_playlists:
         if prev_playlist.id == curr_playlist.playlist_id:
             return "You have already stored this playlist!"
         if prev_playlist.title.casefold() == title.casefold():
@@ -335,15 +336,17 @@ def find_playlist(user: User, playlist_name: str):
     return None
 
 
-def find_preset(preset_name: str):
+def find_preset(curr_user: User, preset_name: str):
     '''Finds and returns preset with matching name'''
     casefold_preset_name = preset_name.casefold()
-    for curr_preset in all_presets:
+    for curr_preset in curr_user.all_user_presets:
         if (curr_preset.title == casefold_preset_name):
             return curr_preset
     return None
 
 def read_all_users():
+    ''' Read data for each user from the file if data is previously stores
+    Ensure data will not be lost upon opening new file'''
     with open("user_data/registered_users.txt", "r", encoding = "utf-8") as f:
         for curr_line in f:
             if (curr_line == ""):
@@ -352,10 +355,6 @@ def read_all_users():
             curr_user = User(user_id)
             all_users.append(curr_user)
             read_all_details_from_file(curr_user)
-
-read_all_users()
-bot = commands.Bot(command_prefix='$', intents=intents)
-
 
 def check_valid_categories(args: list) -> str:
     '''Checks for an error in giving categories for rand_vid_category. Either returns the error message, which the discord
@@ -390,10 +389,50 @@ def check_valid_categories(args: list) -> str:
             return error_message
     return "no error"
 
+# Read all previously stored data from file for all users that existed
+read_all_users() 
+
+# Launch bot
+bot = commands.Bot(command_prefix='/', intents=intents)
+
+@bot.command()
+async def save_playlist(ctx, *args):
+    '''Saves playlist given playlist URL and possible title. If no title provided, simply uses playlist's title as default'''
+    if (len(args) == 0):
+        await ctx.send("Please provide the playlist URL")
+        return
+    if (len(args) == 1):
+        await ctx.send("Attempting to store the playlist. This may take a few moments.")
+        # Get user id
+        user_id = f"{ctx.author.name}#{ctx.author.discriminator}"
+        curr_user = find_user(user_id)
+        if (curr_user is None): # User not found
+           curr_user = register_user(user_id)
+        # Stores playlist and check for error
+        error_message = store_playlist_helper(curr_user, playlist_link=args[0])
+        if (error_message == "no error"):
+            playlist_title = curr_user.all_user_playlists[len(curr_user.all_user_playlists)-1].title
+            playlist_num_vids = len(curr_user.all_user_playlists[len(curr_user.all_user_playlists)-1].videos)
+            await ctx.send(f"Playlist {playlist_title} saved successfully with {playlist_num_vids} videos!")
+            return
+        else:
+            await ctx.send(f"An error occured while trying to save the playlist: {error_message}")
+            return
+    else:
+        error_message = store_playlist_helper(curr_user, playlist_link = args[0], title=args[1])
+        if (error_message == "no error"):
+            await ctx.send(f"Playlists saved successfully with title {args[1]}")
+        else:
+            await ctx.send(f"An error occured while trying to save the playlist : {error_message}")
 
 @bot.command()
 async def random_video(ctx, arg):
-    playlist_to_use = find_playlist(arg)
+    user_id = f"{ctx.author.name}#{ctx.author.discriminator}"
+    curr_user = find_user(user_id)
+    if (curr_user is None): # User not found
+        await ctx.send(f"You, {user_id} have not stored any playlists. Please store playlists before attempting to get a random video")
+        return
+    playlist_to_use = find_playlist(curr_user, arg)
     if (playlist_to_use is None):
         await ctx.send(f"{arg} not found as a valid playlist. Did you save this playlist yet?")
         await ctx.send("If you did save the playlist, make sure to state its name correctly. Use quotations around multi-word names")
@@ -406,40 +445,13 @@ async def random_video(ctx, arg):
             return
         await ctx.send(f"{video_chosen.url} -- {video_chosen.title} by {video_chosen.author}")
 
-
-@bot.command()
-async def save_playlist(ctx, *args):
-    if (len(args) == 0):
-        await ctx.send("Please provide the playlist URL")
-        return
-    if (len(args) == 1):
-        await ctx.send("Attempting to store the playlist. This may take a few moments.")
-        # Get user id
-        user_id = f"{ctx.author.name}#{ctx.author.discriminator}"
-        curr_user = find_user(user_id)
-        if (curr_user is None): # User not found
-           curr_user = register_user(user_id)
-        # Stores playlist and check for error
-        error_message = store_playlist_helper(playlist_link=args[0])
-        if (error_message == "no error"):
-            playlist_title = curr_user.all_user_playlists[len(curr_user.all_user_playlists)-1].title
-            playlist_num_vids = len(curr_user.all_user_playlists[len(curr_user.all_user_playlists)-1].videos)
-            await ctx.send(f"Playlist {playlist_title} saved successfully with {playlist_num_vids} videos!")
-            return
-        else:
-            await ctx.send(f"An error occured while trying to save the playlist: {error_message}")
-            return
-    else:
-        error_message = store_playlist_helper(args[0], title=args[1])
-        if (error_message == "no error"):
-            await ctx.send(f"Playlists saved successfully with title {args[1]}")
-        else:
-            await ctx.send(f"An error occured while trying to save the playlist : {error_message}")
-
-
 @bot.command()
 async def random_video_with_filter(ctx, *args):
-    print(find_preset("last") is None)
+    user_id = f"{ctx.author.name}#{ctx.author.discriminator}"
+    curr_user = find_user(user_id)
+    if (curr_user is None): # User not found
+        await ctx.send(f"You, {user_id} have not stored any playlists. Please store playlists before attempting to get a random video")
+        return
     video_chosen = []
     if (len(args) == 0):
         await ctx.send("Please provide a playlist name")
@@ -451,14 +463,14 @@ async def random_video_with_filter(ctx, *args):
         await ctx.send("If not, syntax: $random_video_with_filter \"Playlist Name\" min_length max_length min_views max_views author_name title_contains is_favorite")
         await ctx.send("For every filter intended to not be set, \"None\" indicates it is not set")
         return
-    playlist_to_use = find_playlist(args[0])
+    playlist_to_use = find_playlist(curr_user, args[0])
     if (playlist_to_use is None):
         await ctx.send(f"{args[0]} not found as a valid playlist. Did you save this playlist yet?")
         await ctx.send("If you did save the playlist, make sure to state its name correctly. Use quotations around multi-word names")
         return
     if (len(args) == 2):
         # Preset case
-        preset_to_use = find_preset(args[1])
+        preset_to_use = find_preset(curr_user, args[1])
         if (preset_to_use is None):
             await ctx.send(f"{args[1]} not found as a valid preset.")
             await ctx.send("Make sure to spell preset name correctly. Use quotations around multi-word names")
@@ -475,10 +487,10 @@ async def random_video_with_filter(ctx, *args):
         if (error_message != "no error"):
             await ctx.send(f"Error in filter with playlist: {error_message}")
             return
-        last_preset.set_null()
+        curr_user.last_preset.set_null() # Todo: Last preset not stored properly
         # Sets new categories, adds it to last
-        last_preset.get_args_from_string_list(args[1:])
-        video_chosen = (playlist_to_use.rand_vid_filter(preset=last_preset))
+        curr_user.last_preset.get_args_from_string_list(args[1:])
+        video_chosen = (playlist_to_use.rand_vid_filter(preset=curr_user.last_preset))
         if video_chosen is None:
             await ctx.send("No video found with selected criteria!")
         else:
@@ -493,8 +505,12 @@ async def list(ctx):
 async def add_favorite(ctx, *args):
     playlist_name = args[0]
     video_name = args[1]
-
-    playlist_to_use = find_playlist(playlist_name)
+    user_id = f"{ctx.author.name}#{ctx.author.discriminator}"
+    curr_user = find_user(user_id)
+    if (curr_user is None): # User not found
+        await ctx.send(f"You, {user_id} have not stored any playlists. Please store playlists before attempting to add a favorite!")
+        return
+    playlist_to_use = find_playlist(curr_user, playlist_name)
     if (playlist_to_use is None):
         await ctx.send("Playlist not found. Double check your spelling!")
         return
@@ -508,8 +524,12 @@ async def add_favorite(ctx, *args):
 async def remove_favorite(ctx, *args):
     playlist_name = args[0]
     video_name = args[1]
-
-    playlist_to_use = find_playlist(playlist_name)
+    user_id = f"{ctx.author.name}#{ctx.author.discriminator}"
+    curr_user = find_user(user_id)
+    if (curr_user is None): # User not found
+        await ctx.send(f"You, {user_id} have not stored any playlists. Please store playlists before attempting to get a random video")
+        return
+    playlist_to_use = find_playlist(curr_user, playlist_name)
     if (playlist_to_use is None):
         await ctx.send("Playlist not found. Double check your spelling!")
         return
@@ -522,10 +542,14 @@ async def remove_favorite(ctx, *args):
 @bot.command()
 async def add_preset(ctx, *args):
     ''' Creates new preset '''
+    user_id = f"{ctx.author.name}#{ctx.author.discriminator}"
+    curr_user = find_user(user_id)
+    if (curr_user is None): # User not found
+        curr_user = register_user(user_id) 
     curr_preset_title = args[0].casefold()
     if curr_preset_title == "last":
         await ctx.send("\"last\" is not a valid preset name. Use a different name!")
-    for prev_preset in all_presets:
+    for prev_preset in curr_user.all_user_presets:
         if prev_preset.title == curr_preset_title:
             await ctx.send(f"\"{curr_preset_title}\" is already in a previous preset's title. Use a new name!")
             return
@@ -535,14 +559,19 @@ async def add_preset(ctx, *args):
         return
     curr_preset = Preset(curr_preset_title)
     curr_preset.get_args_from_string_list(args[1:])
-    all_presets.append(curr_preset)
+    curr_user.all_user_presets.append(curr_preset)
     write_preset_data(curr_preset)
     await ctx.send(f"Successfully creating preset named {curr_preset.title.casefold()}")
     await ctx.send(f"Parameters: {curr_preset.get_parameters()}")
 
 @bot.command()
 async def get_preset_settings(ctx, arg):
-    preset_to_use = find_preset(arg)
+    user_id = f"{ctx.author.name}#{ctx.author.discriminator}"
+    curr_user = find_user(user_id)
+    if (curr_user is None): # User not found
+        await ctx.send(f"You, {user_id} have not stored any playlists. Please store playlists/presets before attempting to find a preset")
+        return
+    preset_to_use = find_preset(curr_user, arg)
     if (preset_to_use is None):
         await ctx.send("No preset with given name found!")
         return
