@@ -4,6 +4,8 @@ The discord bot provides convenient tool for syncing playing a video via discord
 
 [**Video Tutorial**](https://www.youtube.com/watch?v=voYB8JojGAg)
 
+In order to private message this bot, join the server: https://discord.gg/Frum8UcCQw and send the bot a DM.
+
 ## Bot commands 
 - ___$save_playlist___ <playlist_url> <playlist_name> (optional)
     - Saves a playlist. Takes a few seconds and is stored by bot which can be reused even when the bot goes offline.
