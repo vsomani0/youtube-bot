@@ -125,7 +125,7 @@ class Playlist_Data:
         ''' Tries to add a video that had a random TypeError(likely because of library's fault) 10 additional times.'''
         # Odds of random error occuring 10 times by raw chance: less than 1/10^10
         for i in range(10):
-            print(f"Attempting to add video without exception try: {i+1}")
+            print(f"Attempting to add video without exception try: {i+1}") # todo
             try:
                 curr_vid = YouTube(video)
                 self.videos.append(Video_Data(curr_vid))
@@ -234,8 +234,8 @@ def write_playlist_data(user: User) -> None:
     print("Playlist Data stored to file!")
 
 
-def write_preset_data(curr_preset: Preset):
-    with open("user_data/user_data.txt", "a", encoding="utf-8") as f:
+def write_preset_data(curr_user: User, curr_preset: Preset):
+    with open(f"user_data/{curr_user.user_id}.txt", "a", encoding="utf-8") as f: #todo
         f.write(curr_preset.categories_csv())
         f.write("\n")
     print(" data stored to file!")
@@ -560,7 +560,7 @@ async def add_preset(ctx, *args):
     curr_preset = Preset(curr_preset_title)
     curr_preset.get_args_from_string_list(args[1:])
     curr_user.all_user_presets.append(curr_preset)
-    write_preset_data(curr_preset)
+    write_preset_data(curr_user, curr_preset)
     await ctx.send(f"Successfully creating preset named {curr_preset.title.casefold()}")
     await ctx.send(f"Parameters: {curr_preset.get_parameters()}")
 
